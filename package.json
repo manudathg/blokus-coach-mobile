@@ -1,0 +1,26 @@
+{
+  "name": "blokus-coach",
+  "version": "1.0.0",
+  "description": "Interactive Blokus learning app with full 2-player gameplay using all 21 official Blokus pieces.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manudathg/blockus-mentor.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/manudathg/blockus-mentor/issues"
+  },
+  "homepage": "https://github.com/manudathg/blockus-mentor#readme",
+  "dependencies": {
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0"
+  }
+}

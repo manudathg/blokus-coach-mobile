@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blokus Coach</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">Learn + Play + Smile</p>
+        <h1>Blokus Coach 🎲✨</h1>
+        <p>Play full Blokus with all 21 pieces in either 2-player mode or Human vs AI mode. Great for family game night! 👨‍👩‍👧‍👦</p>
+      </header>
+
+      <section class="panel trainer">
+        <div class="workspace-3col">
+          <aside id="player1-panel" class="player-panel p1-panel">
+            <h3>🧡 Player 1</h3>
+            <p id="player1-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
+            <h4>Remaining Pieces</h4>
+            <div id="player1-remaining" class="remaining-list"></div>
+
+            <div class="controls-card">
+              <h4>🎮 Current Turn Controls</h4>
+              <label for="p1-piece-select">Choose piece 🧩</label>
+              <select id="p1-piece-select"></select>
+              <div class="btn-row">
+                <button id="p1-rotate-btn" type="button"><span class="ico">↻</span> Rotate 90°</button>
+                <button id="p1-flip-btn" type="button"><span class="ico">⇋</span> Flip</button>
+              </div>
+              <div class="btn-row">
+                <button id="p1-hint-btn" type="button" class="ghost"><span class="ico">💡</span> Hint</button>
+                <button id="p1-pass-btn" type="button" class="ghost"><span class="ico">⏭</span> Pass</button>
+              </div>
+              <div class="piece-preview-wrap">
+                <h4>Current Piece</h4>
+                <div id="p1-piece-preview" class="piece-preview"></div>
+              </div>
+              <div class="reasoning-wrap">
+                <h4>Reasoning 🤖</h4>
+                <p id="p1-reasoning" class="reasoning-text">Pick a piece to begin!</p>
+              </div>
+            </div>
+          </aside>
+
+          <section class="center-panel">
+            <div class="mode-controls">
+              <h2 id="turn-indicator">Turn: Player 1</h2>
+              <div class="mode-row">
+                <label for="mode-select">Mode</label>
+                <select id="mode-select">
+                  <option value="hvh">Human vs Human</option>
+                  <option value="ai">Human vs AI</option>
+                </select>
+                <button id="new-game-btn" type="button">New Game</button>
+              </div>
+            </div>
+
+            <div id="board" class="board" aria-label="Blokus board"></div>
+            <p id="feedback" class="feedback" aria-live="polite"></p>
+          </section>
+
+          <aside id="player2-panel" class="player-panel p2-panel">
+            <h3 id="player2-title">💙 Player 2</h3>
+            <p id="player2-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
+            <h4>Remaining Pieces</h4>
+            <div id="player2-remaining" class="remaining-list"></div>
+
+            <div class="controls-card">
+              <h4>🎮 Current Turn Controls</h4>
+              <label for="p2-piece-select">Choose piece 🧩</label>
+              <select id="p2-piece-select"></select>
+              <div class="btn-row">
+                <button id="p2-rotate-btn" type="button"><span class="ico">↻</span> Rotate 90°</button>
+                <button id="p2-flip-btn" type="button"><span class="ico">⇋</span> Flip</button>
+              </div>
+              <div class="btn-row">
+                <button id="p2-hint-btn" type="button" class="ghost"><span class="ico">💡</span> Hint</button>
+                <button id="p2-pass-btn" type="button" class="ghost"><span class="ico">⏭</span> Pass</button>
+              </div>
+              <div class="piece-preview-wrap">
+                <h4>Current Piece</h4>
+                <div id="p2-piece-preview" class="piece-preview"></div>
+              </div>
+              <div class="reasoning-wrap">
+                <h4>Reasoning 🤖</h4>
+                <p id="p2-reasoning" class="reasoning-text">Waiting for the game to start.</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel lessons">
+        <h2>Core Rules 📘</h2>
+        <div class="lesson-grid">
+          <article>
+            <h3>First Piece</h3>
+            <p>Player 1 must cover top-left corner. Player 2 must cover bottom-right corner.</p>
+          </article>
+          <article>
+            <h3>Corner Contact</h3>
+            <p>Your new piece must touch one of your existing pieces diagonally.</p>
+          </article>
+          <article>
+            <h3>No Edge Contact</h3>
+            <p>Your own pieces may not share an edge. Opponent edge contact is allowed.</p>
+          </article>
+          <article>
+            <h3>Endgame</h3>
+            <p>Game ends when both players cannot move. Higher tile count wins.</p>
+          </article>
+        </div>
+        <p class="rulebook-link">
+          Full rulebook:
+          <a href="https://www.ultraboardgames.com/blokus/game-rules.php" target="_blank" rel="noopener noreferrer">
+            Official-style Blokus game rules (full guide)
+          </a>
+        </p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
