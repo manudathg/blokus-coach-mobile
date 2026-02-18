@@ -15,7 +15,7 @@
       </header>
 
       <section class="panel trainer">
-        <div class="workspace-3col">
+        <div id="workspace" class="workspace-3col">
           <aside id="player1-panel" class="player-panel p1-panel">
             <h3 id="player1-title">🧡 <input id="player1-name" class="name-input" type="text" value="Player 1" /></h3>
             <p id="player1-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
@@ -56,6 +56,11 @@
                 </select>
                 <button id="new-game-btn" type="button">New Game</button>
               </div>
+            </div>
+            <div class="mobile-nav" aria-label="Mobile view controls">
+              <button id="view-board-btn" class="mobile-nav-btn active" type="button">Board</button>
+              <button id="view-p1-btn" class="mobile-nav-btn" type="button">P1</button>
+              <button id="view-p2-btn" class="mobile-nav-btn" type="button">P2</button>
             </div>
 
             <div class="board-shell">

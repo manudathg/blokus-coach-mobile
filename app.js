@@ -30,10 +30,14 @@ const playerConfig = {
 };
 
 const boardEl = document.getElementById("board");
+const workspaceEl = document.getElementById("workspace");
 const xTopEl = document.getElementById("x-top");
 const xBottomEl = document.getElementById("x-bottom");
 const yLeftEl = document.getElementById("y-left");
 const yRightEl = document.getElementById("y-right");
+const viewBoardBtnEl = document.getElementById("view-board-btn");
+const viewP1BtnEl = document.getElementById("view-p1-btn");
+const viewP2BtnEl = document.getElementById("view-p2-btn");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
@@ -84,7 +88,10 @@ const game = {
   aiThinking: false,
   reasoning: { 1: "", 2: "" },
   playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
-  theme: "default"
+  theme: "default",
+  mobileView: "board",
+  lastTouchPlaceAt: 0,
+  touchAnchor: null
 };
 
 const transformsByPiece = new Map();
@@ -152,6 +159,25 @@ function renderCoordinates() {
 
 function canUsePlayerControls(player) {
   return !game.isGameOver && !game.aiThinking && game.currentPlayer === player && isPlayerHuman(player);
+}
+
+function isCompactLayout() {
+  return window.matchMedia("(max-width: 820px)").matches;
+}
+
+function setMobileView(view) {
+  game.mobileView = view;
+  workspaceEl.classList.remove("mobile-view-p1", "mobile-view-p2");
+  if (view === "p1") {
+    workspaceEl.classList.add("mobile-view-p1");
+  }
+  if (view === "p2") {
+    workspaceEl.classList.add("mobile-view-p2");
+  }
+
+  viewBoardBtnEl.classList.toggle("active", view === "board");
+  viewP1BtnEl.classList.toggle("active", view === "p1");
+  viewP2BtnEl.classList.toggle("active", view === "p2");
 }
 
 function normalizeCells(cells) {
@@ -441,6 +467,9 @@ function renderReasoning() {
 }
 
 function syncUI() {
+  if (!isCompactLayout() && game.mobileView !== "board") {
+    setMobileView("board");
+  }
   updatePlayerTitles();
   updateTurnLabel();
   renderPieceSelect(1);
@@ -763,6 +792,37 @@ function tryPlaceAt(x, y) {
   endTurn();
 }
 
+function blurActiveInput() {
+  const active = document.activeElement;
+  if (!active) {
+    return;
+  }
+
+  const isEditable =
+    active.tagName === "INPUT" ||
+    active.tagName === "TEXTAREA" ||
+    active.tagName === "SELECT" ||
+    active.isContentEditable;
+
+  if (isEditable && typeof active.blur === "function") {
+    active.blur();
+  }
+}
+
+function placeFromBoardEvent(x, y) {
+  blurActiveInput();
+  tryPlaceAt(x, y);
+}
+
+function findCellFromTouchEvent(event) {
+  const touch = event.changedTouches && event.changedTouches[0];
+  if (!touch) {
+    return null;
+  }
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  return el?.closest?.(".cell") ?? null;
+}
+
 function updatePreviewAt(x, y) {
   if (game.isGameOver || game.aiThinking) {
     return;
@@ -963,6 +1023,10 @@ function bindEvents() {
     startTurn(1);
   });
 
+  viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
+  viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
+  viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+
   player1NameEl.addEventListener("input", () => {
     game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
     updatePlayerTitles();
@@ -985,17 +1049,76 @@ function bindEvents() {
     updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
   });
 
+  boardEl.addEventListener("touchstart", (event) => {
+    const cell = event.target.closest(".cell");
+    if (!cell) {
+      game.touchAnchor = null;
+      return;
+    }
+    event.preventDefault();
+    const x = Number(cell.dataset.x);
+    const y = Number(cell.dataset.y);
+    game.touchAnchor = { x, y };
+    updatePreviewAt(x, y);
+
+    // On iPhone WKWebView, touchend can be dropped; commit on touchstart for reliability.
+    if (isCompactLayout()) {
+      game.lastTouchPlaceAt = Date.now();
+      placeFromBoardEvent(x, y);
+    }
+  }, { passive: false });
+
   boardEl.addEventListener("mouseleave", () => {
     game.preview = null;
     renderBoard();
   });
+
+  boardEl.addEventListener("touchend", (event) => {
+    if (isCompactLayout()) {
+      game.touchAnchor = null;
+      return;
+    }
+
+    const byPoint = findCellFromTouchEvent(event);
+    const fallback = game.touchAnchor;
+    let x = null;
+    let y = null;
+
+    if (byPoint) {
+      x = Number(byPoint.dataset.x);
+      y = Number(byPoint.dataset.y);
+    } else if (fallback) {
+      x = fallback.x;
+      y = fallback.y;
+    }
+
+    game.touchAnchor = null;
+    if (x === null || y === null) {
+      return;
+    }
+    event.preventDefault();
+    game.lastTouchPlaceAt = Date.now();
+    placeFromBoardEvent(x, y);
+  }, { passive: false });
 
   boardEl.addEventListener("click", (event) => {
     const cell = event.target.closest(".cell");
     if (!cell) {
       return;
     }
-    tryPlaceAt(Number(cell.dataset.x), Number(cell.dataset.y));
+    // iOS often fires a delayed synthetic click after touchend; ignore duplicates.
+    if (Date.now() - game.lastTouchPlaceAt < 450) {
+      return;
+    }
+    placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
+  });
+
+  window.addEventListener("resize", () => {
+    if (!isCompactLayout()) {
+      setMobileView("board");
+    } else if (!["board", "p1", "p2"].includes(game.mobileView)) {
+      setMobileView("board");
+    }
   });
 }
 
@@ -1006,6 +1129,7 @@ function init() {
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
   game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
   game.playerNames.ai = "AI";
+  setMobileView("board");
   resetGame();
   startTurn(1);
 }

@@ -30,16 +30,27 @@ const playerConfig = {
 };
 
 const boardEl = document.getElementById("board");
+const workspaceEl = document.getElementById("workspace");
+const xTopEl = document.getElementById("x-top");
+const xBottomEl = document.getElementById("x-bottom");
+const yLeftEl = document.getElementById("y-left");
+const yRightEl = document.getElementById("y-right");
+const viewBoardBtnEl = document.getElementById("view-board-btn");
+const viewP1BtnEl = document.getElementById("view-p1-btn");
+const viewP2BtnEl = document.getElementById("view-p2-btn");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
 const player1PanelEl = document.getElementById("player1-panel");
 const player2PanelEl = document.getElementById("player2-panel");
+const player1TitleEl = document.getElementById("player1-title");
+const player1NameEl = document.getElementById("player1-name");
 const player1ScoreEl = document.getElementById("player1-score");
 const player2ScoreEl = document.getElementById("player2-score");
 const player1RemainingEl = document.getElementById("player1-remaining");
 const player2RemainingEl = document.getElementById("player2-remaining");
 const player2TitleEl = document.getElementById("player2-title");
+const player2NameEl = document.getElementById("player2-name");
 const controlsByPlayer = {
   1: {
     pieceSelect: document.getElementById("p1-piece-select"),
@@ -75,7 +86,12 @@ const game = {
   isGameOver: false,
   consecutivePasses: 0,
   aiThinking: false,
-  reasoning: { 1: "", 2: "" }
+  reasoning: { 1: "", 2: "" },
+  playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
+  theme: "default",
+  mobileView: "board",
+  lastTouchPlaceAt: 0,
+  touchAnchor: null
 };
 
 const transformsByPiece = new Map();
@@ -86,9 +102,9 @@ function key(x, y) {
 
 function playerLabel(player) {
   if (game.mode === "ai" && player === 2) {
-    return "AI";
+    return game.playerNames.ai || "AI";
   }
-  return playerConfig[player].name;
+  return game.playerNames[player] || playerConfig[player].name;
 }
 
 function isPlayerHuman(player) {
@@ -101,7 +117,14 @@ function updateTurnHighlight() {
 }
 
 function updatePlayerTitles() {
-  player2TitleEl.textContent = game.mode === "ai" ? "🤖 AI" : "💙 Player 2";
+  player1NameEl.value = game.playerNames[1] || "Player 1";
+  if (game.mode === "ai") {
+    player2NameEl.value = game.playerNames.ai || "AI";
+    player2NameEl.disabled = true;
+  } else {
+    player2NameEl.value = game.playerNames[2] || "Player 2";
+    player2NameEl.disabled = false;
+  }
 }
 
 function setReasoning(player, text) {
@@ -109,8 +132,52 @@ function setReasoning(player, text) {
   controlsByPlayer[player].reasoningEl.textContent = text;
 }
 
+function renderCoordinates() {
+  xTopEl.innerHTML = "";
+  xBottomEl.innerHTML = "";
+  yLeftEl.innerHTML = "";
+  yRightEl.innerHTML = "";
+
+  for (let i = 1; i <= BOARD_SIZE; i += 1) {
+    const xTop = document.createElement("span");
+    xTop.textContent = String(i);
+    xTopEl.appendChild(xTop);
+
+    const xBottom = document.createElement("span");
+    xBottom.textContent = String(i);
+    xBottomEl.appendChild(xBottom);
+
+    const yLeft = document.createElement("span");
+    yLeft.textContent = String(i);
+    yLeftEl.appendChild(yLeft);
+
+    const yRight = document.createElement("span");
+    yRight.textContent = String(i);
+    yRightEl.appendChild(yRight);
+  }
+}
+
 function canUsePlayerControls(player) {
   return !game.isGameOver && !game.aiThinking && game.currentPlayer === player && isPlayerHuman(player);
+}
+
+function isCompactLayout() {
+  return window.matchMedia("(max-width: 820px)").matches;
+}
+
+function setMobileView(view) {
+  game.mobileView = view;
+  workspaceEl.classList.remove("mobile-view-p1", "mobile-view-p2");
+  if (view === "p1") {
+    workspaceEl.classList.add("mobile-view-p1");
+  }
+  if (view === "p2") {
+    workspaceEl.classList.add("mobile-view-p2");
+  }
+
+  viewBoardBtnEl.classList.toggle("active", view === "board");
+  viewP1BtnEl.classList.toggle("active", view === "p1");
+  viewP2BtnEl.classList.toggle("active", view === "p2");
 }
 
 function normalizeCells(cells) {
@@ -400,6 +467,9 @@ function renderReasoning() {
 }
 
 function syncUI() {
+  if (!isCompactLayout() && game.mobileView !== "board") {
+    setMobileView("board");
+  }
   updatePlayerTitles();
   updateTurnLabel();
   renderPieceSelect(1);
@@ -591,7 +661,7 @@ function applyHumanRecommendation() {
 
   setReasoning(
     1,
-    `${describeMove(1, best, "Coach pick:")} You can play something else if you want, and I will adapt next turn.`
+    `${describeMove(1, best, "Coach pick:")}`
   );
 }
 
@@ -635,7 +705,7 @@ function finishGame() {
   if (p1Tiles === p2Tiles) {
     setFeedback(`Game over: tie at ${p1Tiles}-${p2Tiles}.`, "good");
   } else {
-    const winner = p1Tiles > p2Tiles ? "Player 1" : playerLabel(2);
+    const winner = p1Tiles > p2Tiles ? playerLabel(1) : playerLabel(2);
     setFeedback(`Game over: ${winner} wins ${Math.max(p1Tiles, p2Tiles)}-${Math.min(p1Tiles, p2Tiles)}.`, "good");
   }
   setReasoning(1, "Game finished. Great thinking and teamwork! 🏁");
@@ -722,6 +792,37 @@ function tryPlaceAt(x, y) {
   endTurn();
 }
 
+function blurActiveInput() {
+  const active = document.activeElement;
+  if (!active) {
+    return;
+  }
+
+  const isEditable =
+    active.tagName === "INPUT" ||
+    active.tagName === "TEXTAREA" ||
+    active.tagName === "SELECT" ||
+    active.isContentEditable;
+
+  if (isEditable && typeof active.blur === "function") {
+    active.blur();
+  }
+}
+
+function placeFromBoardEvent(x, y) {
+  blurActiveInput();
+  tryPlaceAt(x, y);
+}
+
+function findCellFromTouchEvent(event) {
+  const touch = event.changedTouches && event.changedTouches[0];
+  if (!touch) {
+    return null;
+  }
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  return el?.closest?.(".cell") ?? null;
+}
+
 function updatePreviewAt(x, y) {
   if (game.isGameOver || game.aiThinking) {
     return;
@@ -779,7 +880,7 @@ function runAiTurn() {
       : "I don't see a strong immediate reply for you.";
     setReasoning(
       2,
-      `${describeMove(2, move, "I chose")} ${anticipationText} I'm optimizing for more future corners and fewer options for you.`
+      `${describeMove(2, move, "I chose")} ${anticipationText}`
     );
     game.aiThinking = false;
     syncUI();
@@ -861,7 +962,7 @@ function resetGame() {
     2: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 2 strategy notes will appear here."
   };
 
-  setFeedback("New game started. Player 1 begins from top-left corner. 🎉", "good");
+  setFeedback(`New game started. ${playerLabel(1)} begins from top-left corner. 🎉`, "good");
   syncUI();
 }
 
@@ -922,6 +1023,24 @@ function bindEvents() {
     startTurn(1);
   });
 
+  viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
+  viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
+  viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+
+  player1NameEl.addEventListener("input", () => {
+    game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
+    updatePlayerTitles();
+    updateTurnLabel();
+  });
+
+  player2NameEl.addEventListener("input", () => {
+    game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
+    if (game.mode !== "ai") {
+      updatePlayerTitles();
+      updateTurnLabel();
+    }
+  });
+
   boardEl.addEventListener("mousemove", (event) => {
     const cell = event.target.closest(".cell");
     if (!cell) {
@@ -930,23 +1049,87 @@ function bindEvents() {
     updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
   });
 
+  boardEl.addEventListener("touchstart", (event) => {
+    const cell = event.target.closest(".cell");
+    if (!cell) {
+      game.touchAnchor = null;
+      return;
+    }
+    event.preventDefault();
+    const x = Number(cell.dataset.x);
+    const y = Number(cell.dataset.y);
+    game.touchAnchor = { x, y };
+    updatePreviewAt(x, y);
+
+    // On iPhone WKWebView, touchend can be dropped; commit on touchstart for reliability.
+    if (isCompactLayout()) {
+      game.lastTouchPlaceAt = Date.now();
+      placeFromBoardEvent(x, y);
+    }
+  }, { passive: false });
+
   boardEl.addEventListener("mouseleave", () => {
     game.preview = null;
     renderBoard();
   });
+
+  boardEl.addEventListener("touchend", (event) => {
+    if (isCompactLayout()) {
+      game.touchAnchor = null;
+      return;
+    }
+
+    const byPoint = findCellFromTouchEvent(event);
+    const fallback = game.touchAnchor;
+    let x = null;
+    let y = null;
+
+    if (byPoint) {
+      x = Number(byPoint.dataset.x);
+      y = Number(byPoint.dataset.y);
+    } else if (fallback) {
+      x = fallback.x;
+      y = fallback.y;
+    }
+
+    game.touchAnchor = null;
+    if (x === null || y === null) {
+      return;
+    }
+    event.preventDefault();
+    game.lastTouchPlaceAt = Date.now();
+    placeFromBoardEvent(x, y);
+  }, { passive: false });
 
   boardEl.addEventListener("click", (event) => {
     const cell = event.target.closest(".cell");
     if (!cell) {
       return;
     }
-    tryPlaceAt(Number(cell.dataset.x), Number(cell.dataset.y));
+    // iOS often fires a delayed synthetic click after touchend; ignore duplicates.
+    if (Date.now() - game.lastTouchPlaceAt < 450) {
+      return;
+    }
+    placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
+  });
+
+  window.addEventListener("resize", () => {
+    if (!isCompactLayout()) {
+      setMobileView("board");
+    } else if (!["board", "p1", "p2"].includes(game.mobileView)) {
+      setMobileView("board");
+    }
   });
 }
 
 function init() {
   precomputeTransforms();
+  renderCoordinates();
   bindEvents();
+  game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
+  game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
+  game.playerNames.ai = "AI";
+  setMobileView("board");
   resetGame();
   startTurn(1);
 }

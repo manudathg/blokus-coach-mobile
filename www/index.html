@@ -15,9 +15,9 @@
       </header>
 
       <section class="panel trainer">
-        <div class="workspace-3col">
+        <div id="workspace" class="workspace-3col">
           <aside id="player1-panel" class="player-panel p1-panel">
-            <h3>🧡 Player 1</h3>
+            <h3 id="player1-title">🧡 <input id="player1-name" class="name-input" type="text" value="Player 1" /></h3>
             <p id="player1-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
             <div id="player1-remaining" class="remaining-list"></div>
@@ -57,13 +57,26 @@
                 <button id="new-game-btn" type="button">New Game</button>
               </div>
             </div>
+            <div class="mobile-nav" aria-label="Mobile view controls">
+              <button id="view-board-btn" class="mobile-nav-btn active" type="button">Board</button>
+              <button id="view-p1-btn" class="mobile-nav-btn" type="button">P1</button>
+              <button id="view-p2-btn" class="mobile-nav-btn" type="button">P2</button>
+            </div>
 
-            <div id="board" class="board" aria-label="Blokus board"></div>
+            <div class="board-shell">
+              <div id="x-top" class="coord-x"></div>
+              <div class="board-row">
+                <div id="y-left" class="coord-y"></div>
+                <div id="board" class="board" aria-label="Blokus board"></div>
+                <div id="y-right" class="coord-y"></div>
+              </div>
+              <div id="x-bottom" class="coord-x"></div>
+            </div>
             <p id="feedback" class="feedback" aria-live="polite"></p>
           </section>
 
           <aside id="player2-panel" class="player-panel p2-panel">
-            <h3 id="player2-title">💙 Player 2</h3>
+            <h3 id="player2-title">💙 <input id="player2-name" class="name-input" type="text" value="Player 2" /></h3>
             <p id="player2-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
             <div id="player2-remaining" class="remaining-list"></div>
@@ -119,6 +132,21 @@
             Official-style Blokus game rules (full guide)
           </a>
         </p>
+        <p class="rulebook-link">Algorithms and strategy references:</p>
+        <ul class="strategy-links">
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Minimax" target="_blank" rel="noopener noreferrer">Minimax search</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning" target="_blank" rel="noopener noreferrer">Alpha-beta pruning</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Monte_Carlo_tree_search" target="_blank" rel="noopener noreferrer">Monte Carlo Tree Search (MCTS)</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Polyomino" target="_blank" rel="noopener noreferrer">Polyomino strategy basics</a>
+          </li>
+        </ul>
       </section>
     </main>
 
