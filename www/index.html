@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="ios-safe-top" aria-hidden="true"></div>
     <main class="app-shell">
       <header class="hero">
         <p class="eyebrow">Learn + Play + Smile</p>
@@ -57,11 +58,6 @@
                 <button id="new-game-btn" type="button">New Game</button>
               </div>
             </div>
-            <div class="mobile-nav" aria-label="Mobile view controls">
-              <button id="view-board-btn" class="mobile-nav-btn active" type="button">Board</button>
-              <button id="view-p1-btn" class="mobile-nav-btn" type="button">P1</button>
-              <button id="view-p2-btn" class="mobile-nav-btn" type="button">P2</button>
-            </div>
 
             <div class="board-shell">
               <div id="x-top" class="coord-x"></div>
@@ -105,6 +101,26 @@
           </aside>
         </div>
       </section>
+
+      <section class="panel mobile-reasoning">
+        <h2>Reasoning 💭</h2>
+        <div class="reasoning-grid-mobile">
+          <article class="reasoning-card">
+            <h3>Human Suggestion 🧡</h3>
+            <p id="reasoning-human-mobile" class="reasoning-text">Coach suggestions will appear here.</p>
+          </article>
+          <article class="reasoning-card">
+            <h3>AI Thinking 🤖</h3>
+            <p id="reasoning-ai-mobile" class="reasoning-text">AI strategy notes will appear here.</p>
+          </article>
+        </div>
+      </section>
+
+      <div class="mobile-nav mobile-nav-footer" aria-label="Mobile view controls">
+        <button id="view-board-btn" class="mobile-nav-btn active" type="button">Board</button>
+        <button id="view-p1-btn" class="mobile-nav-btn" type="button">P1</button>
+        <button id="view-p2-btn" class="mobile-nav-btn" type="button">P2</button>
+      </div>
 
       <section class="panel lessons">
         <h2>Core Rules 📘</h2>

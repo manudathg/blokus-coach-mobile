@@ -6,6 +6,7 @@
   --p2: #1877f2;
   --good: #0f9d58;
   --bad: #c62828;
+  --safe-top: calc(env(safe-area-inset-top) + 12px);
 }
 
 * {
@@ -22,6 +23,17 @@ body {
     radial-gradient(circle at 60% 50%, #ffe5f7 0, transparent 32%),
     var(--bg);
   min-height: 100vh;
+  padding-top: var(--safe-top);
+}
+
+.ios-safe-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: #193246;
+  z-index: 30;
 }
 
 .app-shell {
@@ -170,6 +182,10 @@ h4 {
   width: 100%;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.45rem;
+}
+
+.mobile-nav-footer {
+  margin-top: -0.3rem;
 }
 
 .mobile-nav-btn {
@@ -393,6 +409,28 @@ button.ghost {
   font-size: 0.95rem;
 }
 
+.mobile-reasoning h2 {
+  margin-bottom: 0.55rem;
+}
+
+.reasoning-grid-mobile {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.reasoning-card {
+  background: linear-gradient(180deg, #fff, #fff9ef);
+  border: 1px solid #e6dcc7;
+  border-radius: 12px;
+  padding: 0.55rem;
+}
+
+.reasoning-card h3 {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
 .rulebook-link a {
   color: #0c5ca5;
   font-weight: 600;
@@ -449,6 +487,7 @@ button.ghost {
   }
 
   .hero {
+    margin-top: 0.2rem;
     border-radius: 14px;
     padding: 0.9rem 1rem;
   }
@@ -468,6 +507,10 @@ button.ghost {
 
   .mobile-nav {
     display: grid;
+  }
+
+  .mobile-nav-footer {
+    margin: 0.1rem 0 0.35rem;
   }
 
   .mode-row {
@@ -518,5 +561,22 @@ button.ghost {
     width: 100%;
     max-width: 11rem;
     min-height: 2rem;
+  }
+
+  .reasoning-grid-mobile {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .reasoning-card {
+    padding: 0.5rem;
+  }
+
+  .reasoning-card h3 {
+    font-size: 0.9rem;
+  }
+
+  .reasoning-card .reasoning-text {
+    font-size: 0.88rem;
   }
 }

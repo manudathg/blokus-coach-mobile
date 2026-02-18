@@ -38,6 +38,8 @@ const yRightEl = document.getElementById("y-right");
 const viewBoardBtnEl = document.getElementById("view-board-btn");
 const viewP1BtnEl = document.getElementById("view-p1-btn");
 const viewP2BtnEl = document.getElementById("view-p2-btn");
+const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile");
+const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
@@ -462,8 +464,18 @@ function updateControlStates() {
 }
 
 function renderReasoning() {
-  controlsByPlayer[1].reasoningEl.textContent = game.reasoning[1] || "Pick a piece and have fun!";
-  controlsByPlayer[2].reasoningEl.textContent = game.reasoning[2] || "Waiting for a move.";
+  const p1Text = game.reasoning[1] || "Pick a piece and have fun!";
+  const p2Text = game.reasoning[2] || "Waiting for a move.";
+
+  controlsByPlayer[1].reasoningEl.textContent = p1Text;
+  controlsByPlayer[2].reasoningEl.textContent = p2Text;
+
+  if (reasoningHumanMobileEl) {
+    reasoningHumanMobileEl.textContent = p1Text;
+  }
+  if (reasoningAiMobileEl) {
+    reasoningAiMobileEl.textContent = p2Text;
+  }
 }
 
 function syncUI() {
@@ -941,6 +953,9 @@ function manualPass(player) {
 }
 
 function resetGame() {
+  if (isCompactLayout() && modeSelectEl.value !== "ai") {
+    modeSelectEl.value = "ai";
+  }
   game.mode = modeSelectEl.value;
   game.board = makeEmptyBoard();
   game.currentPlayer = 1;
@@ -1126,6 +1141,9 @@ function init() {
   precomputeTransforms();
   renderCoordinates();
   bindEvents();
+  if (isCompactLayout()) {
+    modeSelectEl.value = "ai";
+  }
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
   game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
   game.playerNames.ai = "AI";
