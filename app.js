@@ -785,18 +785,22 @@ function tryPlaceAt(x, y) {
     return;
   }
 
-  const verdict = evaluatePlacement(player, x, y, shape);
+  const resolved = isCompactLayout()
+    ? resolveAnchorForTap(player, x, y, shape)
+    : { x, y, verdict: evaluatePlacement(player, x, y, shape) };
+  const { x: anchorX, y: anchorY, verdict } = resolved;
+
   if (!verdict.ok) {
     setFeedback(verdict.reason, "bad");
-    game.preview = { cells: getPlacedCells(x, y, shape), ok: false };
+    game.preview = { cells: getPlacedCells(anchorX, anchorY, shape), ok: false };
     renderBoard();
     return;
   }
 
-  applyMove(player, pieceId, shape, x, y);
+  applyMove(player, pieceId, shape, anchorX, anchorY);
   setFeedback(`${playerLabel(player)} placed ${pieceId}.`, "good");
   if (game.mode === "ai" && player === 1) {
-    setReasoning(1, `Played ${pieceId} at x:${x + 1}, y:${y + 1}. Recomputing best plan for your next turn...`);
+    setReasoning(1, `Played ${pieceId} at x:${anchorX + 1}, y:${anchorY + 1}. Recomputing best plan for your next turn...`);
   } else {
     setReasoning(player, `Great move with ${pieceId}!`);
   }
@@ -835,6 +839,38 @@ function findCellFromTouchEvent(event) {
   return el?.closest?.(".cell") ?? null;
 }
 
+function resolveAnchorForTap(player, tapX, tapY, shape) {
+  let best = null;
+  const checked = new Set();
+
+  for (const cell of shape) {
+    const anchorX = tapX - cell.x;
+    const anchorY = tapY - cell.y;
+    const k = key(anchorX, anchorY);
+    if (checked.has(k)) {
+      continue;
+    }
+    checked.add(k);
+
+    const verdict = evaluatePlacement(player, anchorX, anchorY, shape);
+    if (!verdict.ok) {
+      continue;
+    }
+
+    // Prefer anchors where the tapped square maps to a piece cell near the top-left of the piece.
+    const rank = Math.abs(cell.x) + Math.abs(cell.y);
+    if (!best || rank < best.rank) {
+      best = { x: anchorX, y: anchorY, verdict, rank };
+    }
+  }
+
+  if (best) {
+    return { x: best.x, y: best.y, verdict: best.verdict };
+  }
+
+  return { x: tapX, y: tapY, verdict: evaluatePlacement(player, tapX, tapY, shape) };
+}
+
 function updatePreviewAt(x, y) {
   if (game.isGameOver || game.aiThinking) {
     return;
@@ -853,9 +889,12 @@ function updatePreviewAt(x, y) {
     return;
   }
 
-  const verdict = evaluatePlacement(game.currentPlayer, x, y, shape);
+  const resolved = isCompactLayout()
+    ? resolveAnchorForTap(game.currentPlayer, x, y, shape)
+    : { x, y, verdict: evaluatePlacement(game.currentPlayer, x, y, shape) };
+  const verdict = resolved.verdict;
   game.preview = {
-    cells: getPlacedCells(x, y, shape),
+    cells: getPlacedCells(resolved.x, resolved.y, shape),
     ok: verdict.ok
   };
   renderBoard();
