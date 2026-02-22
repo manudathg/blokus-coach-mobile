@@ -42,6 +42,12 @@ const player2InlineCountEl = document.getElementById("player2-inline-count");
 const viewBoardBtnEl = document.getElementById("view-board-btn");
 const viewP1BtnEl = document.getElementById("view-p1-btn");
 const viewP2BtnEl = document.getElementById("view-p2-btn");
+const stagePiecePreviewEl = document.getElementById("stage-piece-preview");
+const stageRotateBtnEl = document.getElementById("stage-rotate-btn");
+const stageFlipBtnEl = document.getElementById("stage-flip-btn");
+const stageHintBtnEl = document.getElementById("stage-hint-btn");
+const stagePassBtnEl = document.getElementById("stage-pass-btn");
+const stagePlayBtnEl = document.getElementById("stage-play-btn");
 const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile");
 const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const feedbackEl = document.getElementById("feedback");
@@ -98,7 +104,8 @@ const game = {
   mobileView: "board",
   lastTouchPlaceAt: 0,
   touchAnchor: null,
-  draggingPiece: null
+  draggingPiece: null,
+  pendingAnchorByPlayer: { 1: null, 2: null }
 };
 
 const transformsByPiece = new Map();
@@ -140,27 +147,43 @@ function setReasoning(player, text) {
 }
 
 function renderCoordinates() {
-  xTopEl.innerHTML = "";
-  xBottomEl.innerHTML = "";
-  yLeftEl.innerHTML = "";
-  yRightEl.innerHTML = "";
+  if (xTopEl) {
+    xTopEl.innerHTML = "";
+  }
+  if (xBottomEl) {
+    xBottomEl.innerHTML = "";
+  }
+  if (yLeftEl) {
+    yLeftEl.innerHTML = "";
+  }
+  if (yRightEl) {
+    yRightEl.innerHTML = "";
+  }
 
   for (let i = 1; i <= BOARD_SIZE; i += 1) {
     const xTop = document.createElement("span");
     xTop.textContent = String(i);
-    xTopEl.appendChild(xTop);
+    if (xTopEl) {
+      xTopEl.appendChild(xTop);
+    }
 
     const xBottom = document.createElement("span");
     xBottom.textContent = String(i);
-    xBottomEl.appendChild(xBottom);
+    if (xBottomEl) {
+      xBottomEl.appendChild(xBottom);
+    }
 
     const yLeft = document.createElement("span");
     yLeft.textContent = String(i);
-    yLeftEl.appendChild(yLeft);
+    if (yLeftEl) {
+      yLeftEl.appendChild(yLeft);
+    }
 
     const yRight = document.createElement("span");
     yRight.textContent = String(i);
-    yRightEl.appendChild(yRight);
+    if (yRightEl) {
+      yRightEl.appendChild(yRight);
+    }
   }
 }
 
@@ -182,9 +205,11 @@ function setMobileView(view) {
     workspaceEl.classList.add("mobile-view-p2");
   }
 
-  viewBoardBtnEl.classList.toggle("active", view === "board");
-  viewP1BtnEl.classList.toggle("active", view === "p1");
-  viewP2BtnEl.classList.toggle("active", view === "p2");
+  if (viewBoardBtnEl && viewP1BtnEl && viewP2BtnEl) {
+    viewBoardBtnEl.classList.toggle("active", view === "board");
+    viewP1BtnEl.classList.toggle("active", view === "p1");
+    viewP2BtnEl.classList.toggle("active", view === "p2");
+  }
 }
 
 function normalizeCells(cells) {
@@ -348,6 +373,7 @@ function renderBoard() {
 
       if (previewSet.has(key(x, y))) {
         cellEl.classList.add(game.preview?.ok ? "preview-ok" : "preview-bad");
+        cellEl.classList.add(game.currentPlayer === 1 ? "preview-p1" : "preview-p2");
       }
       if (lastMoveSet.has(key(x, y))) {
         cellEl.classList.add("last-move");
@@ -414,6 +440,10 @@ function renderPieceSelect(player) {
 function renderPiecePreview(player) {
   const control = controlsByPlayer[player];
   control.piecePreview.innerHTML = "";
+  const renderStagePreview = Boolean(stagePiecePreviewEl && player === game.currentPlayer);
+  if (renderStagePreview) {
+    stagePiecePreviewEl.innerHTML = "";
+  }
   const shape = getCurrentShape(player);
   const shapeSet = new Set(shape.map((cell) => key(cell.x, cell.y)));
 
@@ -425,6 +455,10 @@ function renderPiecePreview(player) {
         tile.classList.add("on", playerConfig[player].className);
       }
       control.piecePreview.appendChild(tile);
+      if (renderStagePreview) {
+        const stageTile = tile.cloneNode(true);
+        stagePiecePreviewEl.appendChild(stageTile);
+      }
     }
   }
 }
@@ -512,6 +546,45 @@ function updateControlStates() {
     control.hintBtn.disabled = !pieceEnabled;
     control.passBtn.disabled = !turnEnabled;
   }
+
+  if (stageFlipBtnEl && stageRotateBtnEl && stageHintBtnEl && stagePassBtnEl && stagePlayBtnEl) {
+    const player = game.currentPlayer;
+    const enabled = canUsePlayerControls(player) && game.inventory[player].size > 0;
+    const pending = game.pendingAnchorByPlayer[player];
+    const canPlay = enabled && pending && pending.ok;
+
+    stageFlipBtnEl.disabled = !enabled;
+    stageRotateBtnEl.disabled = !enabled;
+    stageHintBtnEl.disabled = !enabled;
+    stagePassBtnEl.disabled = !canUsePlayerControls(player);
+    stagePlayBtnEl.disabled = !canPlay;
+  }
+}
+
+function clearPendingPlacement(player) {
+  game.pendingAnchorByPlayer[player] = null;
+  if (game.currentPlayer === player) {
+    game.preview = null;
+  }
+}
+
+function setPendingPlacement(player, x, y, shape) {
+  const verdict = evaluatePlacement(player, x, y, shape);
+  const cells = getPlacedCells(x, y, shape);
+  game.pendingAnchorByPlayer[player] = { x, y, ok: verdict.ok, reason: verdict.reason, cells };
+  if (game.currentPlayer === player) {
+    game.preview = { cells, ok: verdict.ok };
+  }
+}
+
+function refreshPendingPlacement(player) {
+  const pending = game.pendingAnchorByPlayer[player];
+  const shape = getCurrentShape(player);
+  if (!pending || shape.length === 0) {
+    clearPendingPlacement(player);
+    return;
+  }
+  setPendingPlacement(player, pending.x, pending.y, shape);
 }
 
 function renderReasoning() {
@@ -728,7 +801,7 @@ function applyHumanRecommendation() {
   game.selectedPieceByPlayer[1] = best.pieceId;
   game.rotationByPlayer[1] = best.rotation;
   game.flippedByPlayer[1] = best.flipped;
-  game.preview = { cells: getPlacedCells(best.x, best.y, best.shape), ok: true };
+  setPendingPlacement(1, best.x, best.y, best.shape);
 
   setReasoning(
     1,
@@ -808,6 +881,7 @@ function startTurn(player) {
 
   game.consecutivePasses = 0;
   game.preview = null;
+  clearPendingPlacement(player);
   syncUI();
 
   const aiTurn = game.mode === "ai" && player === 2;
@@ -849,17 +923,36 @@ function tryPlaceAt(x, y) {
     : { x, y, verdict: evaluatePlacement(player, x, y, shape) };
   const { x: anchorX, y: anchorY, verdict } = resolved;
 
+  setPendingPlacement(player, anchorX, anchorY, shape);
   if (!verdict.ok) {
     setFeedback(verdict.reason, "bad");
-    game.preview = { cells: getPlacedCells(anchorX, anchorY, shape), ok: false };
-    renderBoard();
+  } else {
+    setFeedback(`Preview at x:${anchorX + 1}, y:${anchorY + 1}. Tap Play Piece to confirm.`, "good");
+  }
+  syncUI();
+}
+
+function playPendingMove(player) {
+  if (!canUsePlayerControls(player)) {
+    return;
+  }
+  const pending = game.pendingAnchorByPlayer[player];
+  const pieceId = game.selectedPieceByPlayer[player];
+  const shape = getCurrentShape(player);
+  if (!pending || !pieceId || shape.length === 0) {
+    setFeedback("Select a piece and place it on the board first.", "bad");
+    return;
+  }
+  if (!pending.ok) {
+    setFeedback(pending.reason, "bad");
     return;
   }
 
-  applyMove(player, pieceId, shape, anchorX, anchorY);
+  applyMove(player, pieceId, shape, pending.x, pending.y);
+  clearPendingPlacement(player);
   setFeedback(`${playerLabel(player)} placed ${pieceId}.`, "good");
   if (game.mode === "ai" && player === 1) {
-    setReasoning(1, `Played ${pieceId} at x:${anchorX + 1}, y:${anchorY + 1}. Recomputing best plan for your next turn...`);
+    setReasoning(1, `Played ${pieceId} at x:${pending.x + 1}, y:${pending.y + 1}. Recomputing best plan for your next turn...`);
   } else {
     setReasoning(player, `Great move with ${pieceId}!`);
   }
@@ -1015,12 +1108,12 @@ function findHint(player) {
     for (let x = 0; x < BOARD_SIZE; x += 1) {
       const verdict = evaluatePlacement(player, x, y, shape);
       if (verdict.ok) {
-        game.preview = { cells: getPlacedCells(x, y, shape), ok: true };
+        setPendingPlacement(player, x, y, shape);
         setFeedback(`Hint: try x:${x + 1}, y:${y + 1}.`, "good");
         if (game.mode === "ai" && player === 1) {
           setReasoning(1, `Hint targets x:${x + 1}, y:${y + 1} using ${pieceId} to keep your corner chain alive.`);
         }
-        renderBoard();
+        syncUI();
         return;
       }
     }
@@ -1067,6 +1160,7 @@ function resetGame() {
   game.flippedByPlayer = { 1: false, 2: false };
   game.preview = null;
   game.lastMoveCells = [];
+  game.pendingAnchorByPlayer = { 1: null, 2: null };
   game.isGameOver = false;
   game.consecutivePasses = 0;
   game.aiThinking = false;
@@ -1091,9 +1185,8 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = event.target.value;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
+      clearPendingPlacement(player);
+      syncUI();
       if (player === 1) {
         refreshHumanChoiceReasoning();
       }
@@ -1105,9 +1198,8 @@ function bindEvents() {
       }
 
       game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
+      refreshPendingPlacement(player);
+      syncUI();
       if (player === 1) {
         refreshHumanChoiceReasoning();
       }
@@ -1119,9 +1211,8 @@ function bindEvents() {
       }
 
       game.flippedByPlayer[player] = !game.flippedByPlayer[player];
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
+      refreshPendingPlacement(player);
+      syncUI();
       if (player === 1) {
         refreshHumanChoiceReasoning();
       }
@@ -1136,9 +1227,43 @@ function bindEvents() {
     startTurn(1);
   });
 
-  viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
-  viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
-  viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+  if (stageRotateBtnEl && stageFlipBtnEl && stageHintBtnEl && stagePassBtnEl && stagePlayBtnEl) {
+    stageRotateBtnEl.addEventListener("click", () => {
+      const player = game.currentPlayer;
+      if (!canUsePlayerControls(player)) {
+        return;
+      }
+      game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 1) {
+        refreshHumanChoiceReasoning();
+      }
+    });
+
+    stageFlipBtnEl.addEventListener("click", () => {
+      const player = game.currentPlayer;
+      if (!canUsePlayerControls(player)) {
+        return;
+      }
+      game.flippedByPlayer[player] = !game.flippedByPlayer[player];
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 1) {
+        refreshHumanChoiceReasoning();
+      }
+    });
+
+    stageHintBtnEl.addEventListener("click", () => findHint(game.currentPlayer));
+    stagePassBtnEl.addEventListener("click", () => manualPass(game.currentPlayer));
+    stagePlayBtnEl.addEventListener("click", () => playPendingMove(game.currentPlayer));
+  }
+
+  if (viewBoardBtnEl && viewP1BtnEl && viewP2BtnEl) {
+    viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
+    viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
+    viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+  }
 
   const bindInlinePiecePicker = (targetEl) => {
     if (!targetEl) {
@@ -1157,9 +1282,7 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = pieceId;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
+      clearPendingPlacement(player);
       if (player === 1) {
         refreshHumanChoiceReasoning();
       }
@@ -1181,6 +1304,7 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = pieceId;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
+      clearPendingPlacement(player);
       if (event.dataTransfer) {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", `${player}:${pieceId}`);
@@ -1190,8 +1314,7 @@ function bindEvents() {
 
     targetEl.addEventListener("dragend", () => {
       game.draggingPiece = null;
-      game.preview = null;
-      renderBoard();
+      syncUI();
     });
   };
 
@@ -1258,12 +1381,6 @@ function bindEvents() {
     const y = Number(cell.dataset.y);
     game.touchAnchor = { x, y };
     updatePreviewAt(x, y);
-
-    // On iPhone WKWebView, touchend can be dropped; commit on touchstart for reliability.
-    if (isCompactLayout()) {
-      game.lastTouchPlaceAt = Date.now();
-      placeFromBoardEvent(x, y);
-    }
   }, { passive: false });
 
   boardEl.addEventListener("mouseleave", () => {

@@ -17,7 +17,7 @@
 
       <section class="panel trainer">
         <div id="workspace" class="workspace-3col">
-          <aside id="player1-panel" class="player-panel p1-panel">
+          <aside id="player1-panel" class="player-panel p1-panel legacy-panel">
             <h3 id="player1-title">🧡 <input id="player1-name" class="name-input" type="text" value="Player 1" /></h3>
             <p id="player1-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
@@ -72,10 +72,34 @@
               <div class="board-row">
                 <div id="y-left" class="coord-y"></div>
                 <div id="board" class="board" aria-label="Blokus board"></div>
-                <div id="y-right" class="coord-y"></div>
               </div>
-              <div id="x-bottom" class="coord-x"></div>
             </div>
+            <div id="stage-controls" class="stage-controls">
+              <div class="stage-piece">
+                <h3>Selected Piece</h3>
+                <div id="stage-piece-preview" class="piece-preview stage-preview"></div>
+              </div>
+              <div class="stage-actions">
+                <button id="stage-flip-btn" type="button"><span class="ico">⇋</span> Flip</button>
+                <button id="stage-rotate-btn" type="button"><span class="ico">↻</span> Rotate</button>
+                <button id="stage-hint-btn" type="button" class="ghost"><span class="ico">💡</span> Hint</button>
+                <button id="stage-pass-btn" type="button" class="ghost"><span class="ico">⏭</span> Pass</button>
+                <button id="stage-play-btn" type="button" class="play-btn"><span class="ico">✅</span> Play Piece</button>
+              </div>
+            </div>
+            <section class="mobile-reasoning">
+              <h2>Reasoning 💭</h2>
+              <div class="reasoning-grid-mobile">
+                <article class="reasoning-card">
+                  <h3>Human Suggestion 🧡</h3>
+                  <p id="reasoning-human-mobile" class="reasoning-text">Coach suggestions will appear here.</p>
+                </article>
+                <article class="reasoning-card">
+                  <h3>AI Thinking 🤖</h3>
+                  <p id="reasoning-ai-mobile" class="reasoning-text">AI strategy notes will appear here.</p>
+                </article>
+              </div>
+            </section>
 
             <div class="inline-pieces inline-pieces-bottom">
               <div class="inline-pieces-header">
@@ -87,7 +111,7 @@
             <p id="feedback" class="feedback" aria-live="polite"></p>
           </section>
 
-          <aside id="player2-panel" class="player-panel p2-panel">
+          <aside id="player2-panel" class="player-panel p2-panel legacy-panel">
             <h3 id="player2-title">💙 <input id="player2-name" class="name-input" type="text" value="Player 2" /></h3>
             <p id="player2-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
@@ -117,26 +141,6 @@
           </aside>
         </div>
       </section>
-
-      <section class="panel mobile-reasoning">
-        <h2>Reasoning 💭</h2>
-        <div class="reasoning-grid-mobile">
-          <article class="reasoning-card">
-            <h3>Human Suggestion 🧡</h3>
-            <p id="reasoning-human-mobile" class="reasoning-text">Coach suggestions will appear here.</p>
-          </article>
-          <article class="reasoning-card">
-            <h3>AI Thinking 🤖</h3>
-            <p id="reasoning-ai-mobile" class="reasoning-text">AI strategy notes will appear here.</p>
-          </article>
-        </div>
-      </section>
-
-      <div class="mobile-nav mobile-nav-footer" aria-label="Mobile view controls">
-        <button id="view-board-btn" class="mobile-nav-btn active" type="button">Board</button>
-        <button id="view-p1-btn" class="mobile-nav-btn" type="button">P1</button>
-        <button id="view-p2-btn" class="mobile-nav-btn" type="button">P2</button>
-      </div>
 
       <section class="panel lessons">
         <h2>Core Rules 📘</h2>
