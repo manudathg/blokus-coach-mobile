@@ -97,7 +97,8 @@ const game = {
   theme: "default",
   mobileView: "board",
   lastTouchPlaceAt: 0,
-  touchAnchor: null
+  touchAnchor: null,
+  draggingPiece: null
 };
 
 const transformsByPiece = new Map();
@@ -449,21 +450,42 @@ function renderInlineRemainingPieces(player, targetEl) {
   }
   targetEl.innerHTML = "";
 
-  const left = pieces
-    .filter((piece) => game.inventory[player].has(piece.id))
-    .sort((a, b) => b.cells.length - a.cells.length || a.id.localeCompare(b.id));
+  const ordered = [...pieces].sort((a, b) => b.cells.length - a.cells.length || a.id.localeCompare(b.id));
 
-  for (const piece of left) {
+  for (const piece of ordered) {
+    const available = game.inventory[player].has(piece.id);
     const pill = document.createElement("button");
     pill.type = "button";
     pill.className = `piece-pill ${playerConfig[player].className}`;
     pill.dataset.player = String(player);
     pill.dataset.pieceId = piece.id;
-    pill.textContent = piece.id;
-    if (game.selectedPieceByPlayer[player] === piece.id) {
+    pill.title = `${piece.id} (${piece.cells.length})`;
+    pill.setAttribute("aria-label", `${piece.id} (${piece.cells.length})`);
+
+    const shapeEl = document.createElement("span");
+    shapeEl.className = "piece-shape";
+    const normalized = normalizeCells(piece.cells.map(([x, y]) => ({ x, y })));
+    const shapeSet = new Set(normalized.map((cell) => key(cell.x, cell.y)));
+    for (let y = 0; y < 5; y += 1) {
+      for (let x = 0; x < 5; x += 1) {
+        const dot = document.createElement("span");
+        dot.className = "piece-dot";
+        if (shapeSet.has(key(x, y))) {
+          dot.classList.add("on");
+        }
+        shapeEl.appendChild(dot);
+      }
+    }
+    pill.appendChild(shapeEl);
+
+    if (available && game.selectedPieceByPlayer[player] === piece.id) {
       pill.classList.add("selected");
     }
-    pill.disabled = !canUsePlayerControls(player);
+    if (!available) {
+      pill.classList.add("used");
+    }
+    pill.disabled = !available || !canUsePlayerControls(player);
+    pill.draggable = available && canUsePlayerControls(player);
     targetEl.appendChild(pill);
   }
 }
@@ -522,10 +544,10 @@ function syncUI() {
   renderInlineRemainingPieces(1, player1InlineRemainingEl);
   renderInlineRemainingPieces(2, player2InlineRemainingEl);
   if (player1InlineCountEl) {
-    player1InlineCountEl.textContent = `${game.inventory[1].size} left`;
+    player1InlineCountEl.textContent = `${game.inventory[1].size}/21 left`;
   }
   if (player2InlineCountEl) {
-    player2InlineCountEl.textContent = `${game.inventory[2].size} left`;
+    player2InlineCountEl.textContent = `${game.inventory[2].size}/21 left`;
   }
   updateControlStates();
   updateTurnHighlight();
@@ -1143,6 +1165,34 @@ function bindEvents() {
       }
       syncUI();
     });
+
+    targetEl.addEventListener("dragstart", (event) => {
+      const pill = event.target.closest(".piece-pill");
+      if (!pill) {
+        return;
+      }
+      const player = Number(pill.dataset.player);
+      const pieceId = pill.dataset.pieceId;
+      if (!player || !pieceId || !canUsePlayerControls(player) || !game.inventory[player].has(pieceId)) {
+        event.preventDefault();
+        return;
+      }
+      game.draggingPiece = { player, pieceId };
+      game.selectedPieceByPlayer[player] = pieceId;
+      game.rotationByPlayer[player] = 0;
+      game.flippedByPlayer[player] = false;
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `${player}:${pieceId}`);
+      }
+      syncUI();
+    });
+
+    targetEl.addEventListener("dragend", () => {
+      game.draggingPiece = null;
+      game.preview = null;
+      renderBoard();
+    });
   };
 
   bindInlinePiecePicker(player1InlineRemainingEl);
@@ -1168,6 +1218,33 @@ function bindEvents() {
       return;
     }
     updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
+  });
+
+  boardEl.addEventListener("dragover", (event) => {
+    const cell = event.target.closest(".cell");
+    if (!cell || !game.draggingPiece) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
+  });
+
+  boardEl.addEventListener("drop", (event) => {
+    const cell = event.target.closest(".cell");
+    if (!cell || !game.draggingPiece) {
+      return;
+    }
+    event.preventDefault();
+    const { player, pieceId } = game.draggingPiece;
+    game.draggingPiece = null;
+    if (!canUsePlayerControls(player) || !game.inventory[player].has(pieceId)) {
+      return;
+    }
+    game.selectedPieceByPlayer[player] = pieceId;
+    game.rotationByPlayer[player] = 0;
+    game.flippedByPlayer[player] = false;
+    placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
   });
 
   boardEl.addEventListener("touchstart", (event) => {
