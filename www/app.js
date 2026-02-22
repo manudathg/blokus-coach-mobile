@@ -35,6 +35,10 @@ const xTopEl = document.getElementById("x-top");
 const xBottomEl = document.getElementById("x-bottom");
 const yLeftEl = document.getElementById("y-left");
 const yRightEl = document.getElementById("y-right");
+const player1InlineRemainingEl = document.getElementById("player1-inline-remaining");
+const player2InlineRemainingEl = document.getElementById("player2-inline-remaining");
+const player1InlineCountEl = document.getElementById("player1-inline-count");
+const player2InlineCountEl = document.getElementById("player2-inline-count");
 const viewBoardBtnEl = document.getElementById("view-board-btn");
 const viewP1BtnEl = document.getElementById("view-p1-btn");
 const viewP2BtnEl = document.getElementById("view-p2-btn");
@@ -439,6 +443,31 @@ function renderRemainingPieces(player, targetEl) {
   }
 }
 
+function renderInlineRemainingPieces(player, targetEl) {
+  if (!targetEl) {
+    return;
+  }
+  targetEl.innerHTML = "";
+
+  const left = pieces
+    .filter((piece) => game.inventory[player].has(piece.id))
+    .sort((a, b) => b.cells.length - a.cells.length || a.id.localeCompare(b.id));
+
+  for (const piece of left) {
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = `piece-pill ${playerConfig[player].className}`;
+    pill.dataset.player = String(player);
+    pill.dataset.pieceId = piece.id;
+    pill.textContent = piece.id;
+    if (game.selectedPieceByPlayer[player] === piece.id) {
+      pill.classList.add("selected");
+    }
+    pill.disabled = !canUsePlayerControls(player);
+    targetEl.appendChild(pill);
+  }
+}
+
 function updateTurnLabel() {
   if (game.isGameOver) {
     turnIndicatorEl.textContent = "Game Over 🏁";
@@ -490,6 +519,14 @@ function syncUI() {
   renderPiecePreview(2);
   renderRemainingPieces(1, player1RemainingEl);
   renderRemainingPieces(2, player2RemainingEl);
+  renderInlineRemainingPieces(1, player1InlineRemainingEl);
+  renderInlineRemainingPieces(2, player2InlineRemainingEl);
+  if (player1InlineCountEl) {
+    player1InlineCountEl.textContent = `${game.inventory[1].size} left`;
+  }
+  if (player2InlineCountEl) {
+    player2InlineCountEl.textContent = `${game.inventory[2].size} left`;
+  }
   updateControlStates();
   updateTurnHighlight();
   renderBoard();
@@ -1080,6 +1117,36 @@ function bindEvents() {
   viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
   viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
   viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+
+  const bindInlinePiecePicker = (targetEl) => {
+    if (!targetEl) {
+      return;
+    }
+    targetEl.addEventListener("click", (event) => {
+      const pill = event.target.closest(".piece-pill");
+      if (!pill) {
+        return;
+      }
+      const player = Number(pill.dataset.player);
+      const pieceId = pill.dataset.pieceId;
+      if (!player || !pieceId || !canUsePlayerControls(player)) {
+        return;
+      }
+      game.selectedPieceByPlayer[player] = pieceId;
+      game.rotationByPlayer[player] = 0;
+      game.flippedByPlayer[player] = false;
+      game.preview = null;
+      renderPiecePreview(player);
+      renderBoard();
+      if (player === 1) {
+        refreshHumanChoiceReasoning();
+      }
+      syncUI();
+    });
+  };
+
+  bindInlinePiecePicker(player1InlineRemainingEl);
+  bindInlinePiecePicker(player2InlineRemainingEl);
 
   player1NameEl.addEventListener("input", () => {
     game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
