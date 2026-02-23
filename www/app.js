@@ -42,7 +42,6 @@ const player2InlineCountEl = document.getElementById("player2-inline-count");
 const viewBoardBtnEl = document.getElementById("view-board-btn");
 const viewP1BtnEl = document.getElementById("view-p1-btn");
 const viewP2BtnEl = document.getElementById("view-p2-btn");
-const stagePiecePreviewEl = document.getElementById("stage-piece-preview");
 const stageRotateBtnEl = document.getElementById("stage-rotate-btn");
 const stageFlipBtnEl = document.getElementById("stage-flip-btn");
 const stageHintBtnEl = document.getElementById("stage-hint-btn");
@@ -102,9 +101,6 @@ const game = {
   playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
   theme: "default",
   mobileView: "board",
-  lastTouchPlaceAt: 0,
-  touchAnchor: null,
-  draggingPiece: null,
   pendingAnchorByPlayer: { 1: null, 2: null }
 };
 
@@ -440,10 +436,6 @@ function renderPieceSelect(player) {
 function renderPiecePreview(player) {
   const control = controlsByPlayer[player];
   control.piecePreview.innerHTML = "";
-  const renderStagePreview = Boolean(stagePiecePreviewEl && player === game.currentPlayer);
-  if (renderStagePreview) {
-    stagePiecePreviewEl.innerHTML = "";
-  }
   const shape = getCurrentShape(player);
   const shapeSet = new Set(shape.map((cell) => key(cell.x, cell.y)));
 
@@ -455,10 +447,6 @@ function renderPiecePreview(player) {
         tile.classList.add("on", playerConfig[player].className);
       }
       control.piecePreview.appendChild(tile);
-      if (renderStagePreview) {
-        const stageTile = tile.cloneNode(true);
-        stagePiecePreviewEl.appendChild(stageTile);
-      }
     }
   }
 }
@@ -519,7 +507,7 @@ function renderInlineRemainingPieces(player, targetEl) {
       pill.classList.add("used");
     }
     pill.disabled = !available || !canUsePlayerControls(player);
-    pill.draggable = available && canUsePlayerControls(player);
+    pill.draggable = false;
     targetEl.appendChild(pill);
   }
 }
@@ -805,7 +793,7 @@ function applyHumanRecommendation() {
 
   setReasoning(
     1,
-    `${describeMove(1, best, "Coach pick:")}`
+    `${describeMove(1, best, "Coach pick:")} Algorithm: one-ply heuristic search with corner-mobility scoring.`
   );
 }
 
@@ -821,11 +809,11 @@ function refreshHumanChoiceReasoning() {
   }
 
   if (selected === best.pieceId) {
-    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation.`);
+    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation. Algorithm: one-ply heuristic search with corner-mobility scoring.`);
   } else {
     setReasoning(
       1,
-      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn.`
+      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn. Algorithm: one-ply heuristic search with corner-mobility scoring.`
     );
   }
 }
@@ -922,12 +910,18 @@ function tryPlaceAt(x, y) {
     ? resolveAnchorForTap(player, x, y, shape)
     : { x, y, verdict: evaluatePlacement(player, x, y, shape) };
   const { x: anchorX, y: anchorY, verdict } = resolved;
+  const pending = game.pendingAnchorByPlayer[player];
+
+  if (pending && pending.ok && pending.x === anchorX && pending.y === anchorY && verdict.ok) {
+    playPendingMove(player);
+    return;
+  }
 
   setPendingPlacement(player, anchorX, anchorY, shape);
   if (!verdict.ok) {
     setFeedback(verdict.reason, "bad");
   } else {
-    setFeedback(`Preview at x:${anchorX + 1}, y:${anchorY + 1}. Tap Play Piece to confirm.`, "good");
+    setFeedback(`Preview at x:${anchorX + 1}, y:${anchorY + 1}. Tap again here or press Play Piece.`, "good");
   }
   syncUI();
 }
@@ -982,15 +976,6 @@ function placeFromBoardEvent(x, y) {
   tryPlaceAt(x, y);
 }
 
-function findCellFromTouchEvent(event) {
-  const touch = event.changedTouches && event.changedTouches[0];
-  if (!touch) {
-    return null;
-  }
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  return el?.closest?.(".cell") ?? null;
-}
-
 function resolveAnchorForTap(player, tapX, tapY, shape) {
   let best = null;
   const checked = new Set();
@@ -1021,35 +1006,6 @@ function resolveAnchorForTap(player, tapX, tapY, shape) {
   }
 
   return { x: tapX, y: tapY, verdict: evaluatePlacement(player, tapX, tapY, shape) };
-}
-
-function updatePreviewAt(x, y) {
-  if (game.isGameOver || game.aiThinking) {
-    return;
-  }
-
-  if (game.mode === "ai" && game.currentPlayer === 2) {
-    game.preview = null;
-    renderBoard();
-    return;
-  }
-
-  const shape = getCurrentShape(game.currentPlayer);
-  if (shape.length === 0) {
-    game.preview = null;
-    renderBoard();
-    return;
-  }
-
-  const resolved = isCompactLayout()
-    ? resolveAnchorForTap(game.currentPlayer, x, y, shape)
-    : { x, y, verdict: evaluatePlacement(game.currentPlayer, x, y, shape) };
-  const verdict = resolved.verdict;
-  game.preview = {
-    cells: getPlacedCells(resolved.x, resolved.y, shape),
-    ok: verdict.ok
-  };
-  renderBoard();
 }
 
 function runAiTurn() {
@@ -1289,33 +1245,6 @@ function bindEvents() {
       syncUI();
     });
 
-    targetEl.addEventListener("dragstart", (event) => {
-      const pill = event.target.closest(".piece-pill");
-      if (!pill) {
-        return;
-      }
-      const player = Number(pill.dataset.player);
-      const pieceId = pill.dataset.pieceId;
-      if (!player || !pieceId || !canUsePlayerControls(player) || !game.inventory[player].has(pieceId)) {
-        event.preventDefault();
-        return;
-      }
-      game.draggingPiece = { player, pieceId };
-      game.selectedPieceByPlayer[player] = pieceId;
-      game.rotationByPlayer[player] = 0;
-      game.flippedByPlayer[player] = false;
-      clearPendingPlacement(player);
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", `${player}:${pieceId}`);
-      }
-      syncUI();
-    });
-
-    targetEl.addEventListener("dragend", () => {
-      game.draggingPiece = null;
-      syncUI();
-    });
   };
 
   bindInlinePiecePicker(player1InlineRemainingEl);
@@ -1335,96 +1264,12 @@ function bindEvents() {
     }
   });
 
-  boardEl.addEventListener("mousemove", (event) => {
+  boardEl.addEventListener("pointerup", (event) => {
     const cell = event.target.closest(".cell");
     if (!cell) {
       return;
     }
-    updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
-  });
-
-  boardEl.addEventListener("dragover", (event) => {
-    const cell = event.target.closest(".cell");
-    if (!cell || !game.draggingPiece) {
-      return;
-    }
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
-  });
-
-  boardEl.addEventListener("drop", (event) => {
-    const cell = event.target.closest(".cell");
-    if (!cell || !game.draggingPiece) {
-      return;
-    }
-    event.preventDefault();
-    const { player, pieceId } = game.draggingPiece;
-    game.draggingPiece = null;
-    if (!canUsePlayerControls(player) || !game.inventory[player].has(pieceId)) {
-      return;
-    }
-    game.selectedPieceByPlayer[player] = pieceId;
-    game.rotationByPlayer[player] = 0;
-    game.flippedByPlayer[player] = false;
-    placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
-  });
-
-  boardEl.addEventListener("touchstart", (event) => {
-    const cell = event.target.closest(".cell");
-    if (!cell) {
-      game.touchAnchor = null;
-      return;
-    }
-    event.preventDefault();
-    const x = Number(cell.dataset.x);
-    const y = Number(cell.dataset.y);
-    game.touchAnchor = { x, y };
-    updatePreviewAt(x, y);
-  }, { passive: false });
-
-  boardEl.addEventListener("mouseleave", () => {
-    game.preview = null;
-    renderBoard();
-  });
-
-  boardEl.addEventListener("touchend", (event) => {
-    if (isCompactLayout()) {
-      game.touchAnchor = null;
-      return;
-    }
-
-    const byPoint = findCellFromTouchEvent(event);
-    const fallback = game.touchAnchor;
-    let x = null;
-    let y = null;
-
-    if (byPoint) {
-      x = Number(byPoint.dataset.x);
-      y = Number(byPoint.dataset.y);
-    } else if (fallback) {
-      x = fallback.x;
-      y = fallback.y;
-    }
-
-    game.touchAnchor = null;
-    if (x === null || y === null) {
-      return;
-    }
-    event.preventDefault();
-    game.lastTouchPlaceAt = Date.now();
-    placeFromBoardEvent(x, y);
-  }, { passive: false });
-
-  boardEl.addEventListener("click", (event) => {
-    const cell = event.target.closest(".cell");
-    if (!cell) {
-      return;
-    }
-    // iOS often fires a delayed synthetic click after touchend; ignore duplicates.
-    if (Date.now() - game.lastTouchPlaceAt < 450) {
-      return;
-    }
     placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
   });
 
@@ -1435,6 +1280,10 @@ function bindEvents() {
       setMobileView("board");
     }
   });
+
+  document.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+  }, { passive: false });
 }
 
 function init() {

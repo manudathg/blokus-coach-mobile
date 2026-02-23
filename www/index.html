@@ -2,12 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Corner Tiles Coach</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="ios-safe-top" aria-hidden="true"></div>
     <main class="app-shell">
       <header class="hero">
         <p class="eyebrow">Learn + Play + Smile</p>
@@ -75,26 +74,21 @@
               </div>
             </div>
             <div id="stage-controls" class="stage-controls">
-              <div class="stage-piece">
-                <h3>Selected Piece</h3>
-                <div id="stage-piece-preview" class="piece-preview stage-preview"></div>
-              </div>
               <div class="stage-actions">
-                <button id="stage-flip-btn" type="button"><span class="ico">⇋</span> Flip</button>
-                <button id="stage-rotate-btn" type="button"><span class="ico">↻</span> Rotate</button>
-                <button id="stage-hint-btn" type="button" class="ghost"><span class="ico">💡</span> Hint</button>
-                <button id="stage-pass-btn" type="button" class="ghost"><span class="ico">⏭</span> Pass</button>
-                <button id="stage-play-btn" type="button" class="play-btn"><span class="ico">✅</span> Play Piece</button>
+                <button id="stage-flip-btn" type="button" class="action-possible"><span class="ico">⇋</span> Flip</button>
+                <button id="stage-rotate-btn" type="button" class="action-possible"><span class="ico">↻</span> Rotate</button>
+                <button id="stage-hint-btn" type="button" class="action-hint"><span class="ico">💡</span> Hint</button>
+                <button id="stage-pass-btn" type="button" class="action-pass"><span class="ico">⏹</span> Pass</button>
+                <button id="stage-play-btn" type="button" class="action-play"><span class="ico">▶</span> Play Piece</button>
               </div>
             </div>
             <section class="mobile-reasoning">
-              <h2>Reasoning 💭</h2>
               <div class="reasoning-grid-mobile">
-                <article class="reasoning-card">
+                <article class="reasoning-card human-card">
                   <h3>Human Suggestion 🧡</h3>
                   <p id="reasoning-human-mobile" class="reasoning-text">Coach suggestions will appear here.</p>
                 </article>
-                <article class="reasoning-card">
+                <article class="reasoning-card ai-card">
                   <h3>AI Thinking 🤖</h3>
                   <p id="reasoning-ai-mobile" class="reasoning-text">AI strategy notes will appear here.</p>
                 </article>
