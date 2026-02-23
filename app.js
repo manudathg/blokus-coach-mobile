@@ -52,6 +52,7 @@ const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
+const difficultySelectEl = document.getElementById("difficulty-select");
 const player1PanelEl = document.getElementById("player1-panel");
 const player2PanelEl = document.getElementById("player2-panel");
 const player1TitleEl = document.getElementById("player1-title");
@@ -86,6 +87,7 @@ const controlsByPlayer = {
 const game = {
   board: [],
   mode: "hvh",
+  difficulty: "medium",
   currentPlayer: 1,
   hasPlaced: { 1: false, 2: false },
   inventory: { 1: new Set(), 2: new Set() },
@@ -610,6 +612,10 @@ function syncUI() {
   if (player2InlineCountEl) {
     player2InlineCountEl.textContent = `${game.inventory[2].size}/21 left`;
   }
+  if (difficultySelectEl) {
+    difficultySelectEl.value = game.difficulty;
+    difficultySelectEl.disabled = game.mode !== "ai";
+  }
   updateControlStates();
   updateTurnHighlight();
   renderBoard();
@@ -728,9 +734,9 @@ function scoreMove(player, move) {
   });
 }
 
-function findBestMove(player) {
+function collectLegalMoves(player) {
   const remaining = pieces.filter((piece) => game.inventory[player].has(piece.id));
-  let bestMove = null;
+  const moves = [];
 
   for (const piece of remaining) {
     for (const flipped of [false, true]) {
@@ -746,18 +752,63 @@ function findBestMove(player) {
 
             const move = { pieceId: piece.id, shape, x, y, rotation, flipped };
             const metrics = scoreMove(player, move);
-            const candidate = { ...move, metrics };
-
-            if (!bestMove || candidate.metrics.score > bestMove.metrics.score) {
-              bestMove = candidate;
-            }
+            moves.push({ ...move, metrics });
           }
         }
       }
     }
   }
 
-  return bestMove;
+  moves.sort((a, b) => b.metrics.score - a.metrics.score);
+  return moves;
+}
+
+function algorithmLabelForDifficulty(level) {
+  if (level === "easy") {
+    return "stochastic legal-move sampler";
+  }
+  if (level === "hard") {
+    return "two-ply minimax with heuristic evaluation";
+  }
+  return "one-ply heuristic search with corner-mobility scoring";
+}
+
+function findBestMove(player) {
+  const moves = collectLegalMoves(player);
+  return moves[0] ?? null;
+}
+
+function chooseMoveForDifficulty(player, difficulty) {
+  const moves = collectLegalMoves(player);
+  if (moves.length === 0) {
+    return null;
+  }
+
+  if (difficulty === "easy") {
+    const poolSize = Math.min(8, moves.length);
+    return moves[Math.floor(Math.random() * poolSize)];
+  }
+
+  if (difficulty === "hard") {
+    const opponent = player === 1 ? 2 : 1;
+    const pool = moves.slice(0, Math.min(12, moves.length));
+    let best = null;
+
+    for (const move of pool) {
+      const hardScore = withTemporaryMove(player, move, () => {
+        const oppBest = findBestMove(opponent);
+        const oppPressure = oppBest ? oppBest.metrics.score : 0;
+        const ownCorners = countCornerEntries(player);
+        return move.metrics.score - oppPressure * 0.65 + ownCorners * 0.75;
+      });
+      if (!best || hardScore > best.hardScore) {
+        best = { ...move, hardScore };
+      }
+    }
+    return best ?? moves[0];
+  }
+
+  return moves[0];
 }
 
 function describeMove(player, move, intent) {
@@ -780,7 +831,7 @@ function applyHumanRecommendation() {
     return;
   }
 
-  const best = findBestMove(1);
+  const best = chooseMoveForDifficulty(1, game.difficulty);
   if (!best) {
     setReasoning(1, "No legal move available. You can pass this turn.");
     return;
@@ -793,7 +844,7 @@ function applyHumanRecommendation() {
 
   setReasoning(
     1,
-    `${describeMove(1, best, "Coach pick:")} Algorithm: one-ply heuristic search with corner-mobility scoring.`
+    `${describeMove(1, best, "Coach pick:")} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
   );
 }
 
@@ -802,18 +853,18 @@ function refreshHumanChoiceReasoning() {
     return;
   }
 
-  const best = findBestMove(1);
+  const best = chooseMoveForDifficulty(1, game.difficulty);
   const selected = game.selectedPieceByPlayer[1];
   if (!best || !selected) {
     return;
   }
 
   if (selected === best.pieceId) {
-    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation. Algorithm: one-ply heuristic search with corner-mobility scoring.`);
+    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`);
   } else {
     setReasoning(
       1,
-      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn. Algorithm: one-ply heuristic search with corner-mobility scoring.`
+      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
   }
 }
@@ -1014,10 +1065,10 @@ function runAiTurn() {
   }
 
   game.aiThinking = true;
-  setFeedback("AI is thinking... 🤔", "good");
+  setFeedback(`AI is thinking... (${game.difficulty}) 🤔`, "good");
 
   setTimeout(() => {
-    const move = findBestMove(2);
+    const move = chooseMoveForDifficulty(2, game.difficulty);
     if (!move) {
       game.aiThinking = false;
       game.consecutivePasses += 1;
@@ -1031,7 +1082,7 @@ function runAiTurn() {
       return;
     }
 
-    const anticipated = withTemporaryMove(2, move, () => findBestMove(1));
+    const anticipated = withTemporaryMove(2, move, () => chooseMoveForDifficulty(1, game.difficulty));
     applyMove(2, move.pieceId, move.shape, move.x, move.y);
     setFeedback(`AI placed ${move.pieceId} at x:${move.x + 1}, y:${move.y + 1}.`, "good");
     const anticipationText = anticipated
@@ -1039,7 +1090,7 @@ function runAiTurn() {
       : "I don't see a strong immediate reply for you.";
     setReasoning(
       2,
-      `${describeMove(2, move, "I chose")} ${anticipationText}`
+      `${describeMove(2, move, "I chose")} ${anticipationText} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
     game.aiThinking = false;
     syncUI();
@@ -1104,6 +1155,7 @@ function resetGame() {
     modeSelectEl.value = "ai";
   }
   game.mode = modeSelectEl.value;
+  game.difficulty = difficultySelectEl ? difficultySelectEl.value : "medium";
   game.board = makeEmptyBoard();
   game.currentPlayer = 1;
   game.hasPlaced = { 1: false, 2: false };
@@ -1182,6 +1234,27 @@ function bindEvents() {
     resetGame();
     startTurn(1);
   });
+
+  modeSelectEl.addEventListener("change", () => {
+    if (isCompactLayout() && modeSelectEl.value !== "ai") {
+      modeSelectEl.value = "ai";
+    }
+    game.mode = modeSelectEl.value;
+    if (difficultySelectEl) {
+      difficultySelectEl.disabled = game.mode !== "ai";
+    }
+    syncUI();
+  });
+
+  if (difficultySelectEl) {
+    difficultySelectEl.addEventListener("change", () => {
+      game.difficulty = difficultySelectEl.value;
+      if (game.mode === "ai" && game.currentPlayer === 1 && !game.isGameOver) {
+        applyHumanRecommendation();
+      }
+      syncUI();
+    });
+  }
 
   if (stageRotateBtnEl && stageFlipBtnEl && stageHintBtnEl && stagePassBtnEl && stagePlayBtnEl) {
     stageRotateBtnEl.addEventListener("click", () => {
@@ -1292,6 +1365,11 @@ function init() {
   bindEvents();
   if (isCompactLayout()) {
     modeSelectEl.value = "ai";
+  }
+  if (difficultySelectEl) {
+    difficultySelectEl.value = "medium";
+    difficultySelectEl.disabled = modeSelectEl.value !== "ai";
+    game.difficulty = difficultySelectEl.value;
   }
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
   game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
