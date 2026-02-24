@@ -49,6 +49,8 @@ const stageFlipBtnEl = document.getElementById("stage-flip-btn");
 const stageHintBtnEl = document.getElementById("stage-hint-btn");
 const stagePassBtnEl = document.getElementById("stage-pass-btn");
 const stagePlayBtnEl = document.getElementById("stage-play-btn");
+const reasoningHumanTitleEl = document.getElementById("reasoning-human-title");
+const reasoningAiTitleEl = document.getElementById("reasoning-ai-title");
 const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile");
 const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const feedbackEl = document.getElementById("feedback");
@@ -115,14 +117,14 @@ function key(x, y) {
 }
 
 function playerLabel(player) {
-  if (game.mode === "ai" && player === 2) {
+  if (game.mode === "ai" && player === 1) {
     return game.playerNames.ai || "AI";
   }
   return game.playerNames[player] || playerConfig[player].name;
 }
 
 function isPlayerHuman(player) {
-  return game.mode !== "ai" || player === 1;
+  return game.mode !== "ai" || player === 2;
 }
 
 function updateTurnHighlight() {
@@ -131,11 +133,14 @@ function updateTurnHighlight() {
 }
 
 function updatePlayerTitles() {
-  player1NameEl.value = game.playerNames[1] || "Player 1";
   if (game.mode === "ai") {
-    player2NameEl.value = game.playerNames.ai || "AI";
-    player2NameEl.disabled = true;
+    player1NameEl.value = game.playerNames.ai || "AI";
+    player1NameEl.disabled = true;
+    player2NameEl.value = game.playerNames[2] || "Human";
+    player2NameEl.disabled = false;
   } else {
+    player1NameEl.value = game.playerNames[1] || "Player 1";
+    player1NameEl.disabled = false;
     player2NameEl.value = game.playerNames[2] || "Player 2";
     player2NameEl.disabled = false;
   }
@@ -528,12 +533,12 @@ function updateTurnLabel() {
 }
 
 function getInlineDisplayPlayers() {
-  return game.mode === "ai" ? { top: 2, bottom: 1 } : { top: 1, bottom: 2 };
+  return game.mode === "ai" ? { top: 1, bottom: 2 } : { top: 1, bottom: 2 };
 }
 
 function inlinePiecesLabel(player) {
   if (game.mode === "ai") {
-    return player === 2 ? "🤖 AI Pieces" : "🧡 Human Pieces";
+    return player === 1 ? "🤖 AI Pieces" : "💙 Human Pieces";
   }
   return player === 1 ? "🧡 Player 1 Pieces" : "💙 Player 2 Pieces";
 }
@@ -594,17 +599,24 @@ function refreshPendingPlacement(player) {
 }
 
 function renderReasoning() {
-  const p1Text = game.reasoning[1] || "Pick a piece and have fun!";
-  const p2Text = game.reasoning[2] || "Waiting for a move.";
+  const p1Text = game.reasoning[1] || "Waiting for a move.";
+  const p2Text = game.reasoning[2] || "Pick a piece and have fun!";
 
   controlsByPlayer[1].reasoningEl.textContent = p1Text;
   controlsByPlayer[2].reasoningEl.textContent = p2Text;
 
+  if (reasoningHumanTitleEl) {
+    reasoningHumanTitleEl.textContent = game.mode === "ai" ? "Human Suggestion 🧡" : "Player 1 Suggestion 🧡";
+  }
+  if (reasoningAiTitleEl) {
+    reasoningAiTitleEl.textContent = game.mode === "ai" ? "AI Thinking 🤖" : "Player 2 Suggestion 💙";
+  }
+
   if (reasoningHumanMobileEl) {
-    reasoningHumanMobileEl.textContent = p1Text;
+    reasoningHumanMobileEl.textContent = game.mode === "ai" ? p2Text : p1Text;
   }
   if (reasoningAiMobileEl) {
-    reasoningAiMobileEl.textContent = p2Text;
+    reasoningAiMobileEl.textContent = game.mode === "ai" ? p1Text : p2Text;
   }
 }
 
@@ -850,43 +862,43 @@ function describeMove(player, move, intent) {
 }
 
 function applyHumanRecommendation() {
-  if (game.mode !== "ai" || game.currentPlayer !== 1 || game.isGameOver) {
+  if (game.mode !== "ai" || game.currentPlayer !== 2 || game.isGameOver) {
     return;
   }
 
-  const best = chooseMoveForDifficulty(1, game.difficulty);
+  const best = chooseMoveForDifficulty(2, game.difficulty);
   if (!best) {
-    setReasoning(1, "No legal move available. You can pass this turn.");
+    setReasoning(2, "No legal move available. You can pass this turn.");
     return;
   }
 
-  game.selectedPieceByPlayer[1] = best.pieceId;
-  game.rotationByPlayer[1] = best.rotation;
-  game.flippedByPlayer[1] = best.flipped;
-  setPendingPlacement(1, best.x, best.y, best.shape);
+  game.selectedPieceByPlayer[2] = best.pieceId;
+  game.rotationByPlayer[2] = best.rotation;
+  game.flippedByPlayer[2] = best.flipped;
+  setPendingPlacement(2, best.x, best.y, best.shape);
 
   setReasoning(
-    1,
-    `${describeMove(1, best, "Coach pick:")} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
+    2,
+    `${describeMove(2, best, "Coach pick:")} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
   );
 }
 
 function refreshHumanChoiceReasoning() {
-  if (game.mode !== "ai" || game.currentPlayer !== 1 || game.isGameOver) {
+  if (game.mode !== "ai" || game.currentPlayer !== 2 || game.isGameOver) {
     return;
   }
 
-  const best = chooseMoveForDifficulty(1, game.difficulty);
-  const selected = game.selectedPieceByPlayer[1];
+  const best = chooseMoveForDifficulty(2, game.difficulty);
+  const selected = game.selectedPieceByPlayer[2];
   if (!best || !selected) {
     return;
   }
 
   if (selected === best.pieceId) {
-    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`);
+    setReasoning(2, `${describeMove(2, best, "Nice choice!")} This matches the current best recommendation. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`);
   } else {
     setReasoning(
-      1,
+      2,
       `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
   }
@@ -946,11 +958,11 @@ function startTurn(player) {
   clearPendingPlacement(player);
   syncUI();
 
-  const aiTurn = game.mode === "ai" && player === 2;
+  const aiTurn = game.mode === "ai" && player === 1;
   if (aiTurn) {
-    setReasoning(2, "Scanning the board for the strongest move...");
+    setReasoning(1, "Scanning the board for the strongest move...");
     runAiTurn();
-  } else if (game.mode === "ai" && player === 1) {
+  } else if (game.mode === "ai" && player === 2) {
     applyHumanRecommendation();
     syncUI();
   } else {
@@ -968,7 +980,7 @@ function tryPlaceAt(x, y) {
     return;
   }
 
-  if (game.mode === "ai" && game.currentPlayer === 2) {
+  if (game.mode === "ai" && game.currentPlayer === 1) {
     return;
   }
 
@@ -1019,8 +1031,8 @@ function playPendingMove(player) {
   applyMove(player, pieceId, shape, pending.x, pending.y);
   clearPendingPlacement(player);
   setFeedback(`${playerLabel(player)} placed ${pieceId}.`, "good");
-  if (game.mode === "ai" && player === 1) {
-    setReasoning(1, `Played ${pieceId} at x:${pending.x + 1}, y:${pending.y + 1}. Recomputing best plan for your next turn...`);
+  if (game.mode === "ai" && player === 2) {
+    setReasoning(2, `Played ${pieceId} at x:${pending.x + 1}, y:${pending.y + 1}. Recomputing best plan for your next turn...`);
   } else {
     setReasoning(player, `Great move with ${pieceId}!`);
   }
@@ -1091,7 +1103,7 @@ function runAiTurn() {
   setFeedback(`AI is thinking... (${game.difficulty}) 🤔`, "good");
 
   setTimeout(() => {
-    const move = chooseMoveForDifficulty(2, game.difficulty);
+    const move = chooseMoveForDifficulty(1, game.difficulty);
     if (!move) {
       game.aiThinking = false;
       game.consecutivePasses += 1;
@@ -1100,20 +1112,20 @@ function runAiTurn() {
         return;
       }
       setFeedback("AI has no legal moves and passes.", "bad");
-      setReasoning(2, "No legal move was available, so passing preserves future flexibility.");
-      startTurn(1);
+      setReasoning(1, "No legal move was available, so passing preserves future flexibility.");
+      startTurn(2);
       return;
     }
 
-    const anticipated = withTemporaryMove(2, move, () => chooseMoveForDifficulty(1, game.difficulty));
-    applyMove(2, move.pieceId, move.shape, move.x, move.y);
+    const anticipated = withTemporaryMove(1, move, () => chooseMoveForDifficulty(2, game.difficulty));
+    applyMove(1, move.pieceId, move.shape, move.x, move.y);
     setFeedback(`AI placed ${move.pieceId} at x:${move.x + 1}, y:${move.y + 1}.`, "good");
     const anticipationText = anticipated
       ? `I expect you may try ${anticipated.pieceId} near x:${anticipated.x + 1}, y:${anticipated.y + 1}.`
       : "I don't see a strong immediate reply for you.";
     setReasoning(
-      2,
-      `${describeMove(2, move, "I chose")} ${anticipationText} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
+      1,
+      `${describeMove(1, move, "I chose")} ${anticipationText} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
     game.aiThinking = false;
     syncUI();
@@ -1140,8 +1152,8 @@ function findHint(player) {
       if (verdict.ok) {
         setPendingPlacement(player, x, y, shape);
         setFeedback(`Hint: try x:${x + 1}, y:${y + 1}.`, "good");
-        if (game.mode === "ai" && player === 1) {
-          setReasoning(1, `Hint targets x:${x + 1}, y:${y + 1} using ${pieceId} to keep your corner chain alive.`);
+        if (game.mode === "ai" && player === 2) {
+          setReasoning(2, `Hint targets x:${x + 1}, y:${y + 1} using ${pieceId} to keep your corner chain alive.`);
         }
         syncUI();
         return;
@@ -1193,8 +1205,8 @@ function resetGame() {
   game.consecutivePasses = 0;
   game.aiThinking = false;
   game.reasoning = {
-    1: game.mode === "ai" ? "Coach is finding your best opening..." : "Your turn strategy notes will appear here.",
-    2: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 2 strategy notes will appear here."
+    1: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 1 strategy notes will appear here.",
+    2: game.mode === "ai" ? "Coach is finding your best opening..." : "Player 2 strategy notes will appear here."
   };
 
   setFeedback(`New game started. ${playerLabel(1)} begins from top-left corner. 🎉`, "good");
@@ -1215,7 +1227,7 @@ function bindEvents() {
       game.flippedByPlayer[player] = false;
       clearPendingPlacement(player);
       syncUI();
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -1228,7 +1240,7 @@ function bindEvents() {
       game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
       refreshPendingPlacement(player);
       syncUI();
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -1241,7 +1253,7 @@ function bindEvents() {
       game.flippedByPlayer[player] = !game.flippedByPlayer[player];
       refreshPendingPlacement(player);
       syncUI();
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -1266,7 +1278,7 @@ function bindEvents() {
   if (difficultySelectEl) {
     difficultySelectEl.addEventListener("change", () => {
       game.difficulty = difficultySelectEl.value;
-      if (game.mode === "ai" && game.currentPlayer === 1 && !game.isGameOver) {
+      if (game.mode === "ai" && game.currentPlayer === 2 && !game.isGameOver) {
         applyHumanRecommendation();
       }
       syncUI();
@@ -1282,7 +1294,7 @@ function bindEvents() {
       game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
       refreshPendingPlacement(player);
       syncUI();
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -1295,7 +1307,7 @@ function bindEvents() {
       game.flippedByPlayer[player] = !game.flippedByPlayer[player];
       refreshPendingPlacement(player);
       syncUI();
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -1329,7 +1341,7 @@ function bindEvents() {
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
       clearPendingPlacement(player);
-      if (player === 1) {
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
       syncUI();
@@ -1386,7 +1398,7 @@ function init() {
     game.difficulty = difficultySelectEl.value;
   }
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
-  game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
+  game.playerNames[2] = (player2NameEl.value || "").trim() || "Human";
   game.playerNames.ai = "AI";
   setMobileView("board");
   resetGame();
