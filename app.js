@@ -39,6 +39,8 @@ const player1InlineRemainingEl = document.getElementById("player1-inline-remaini
 const player2InlineRemainingEl = document.getElementById("player2-inline-remaining");
 const player1InlineCountEl = document.getElementById("player1-inline-count");
 const player2InlineCountEl = document.getElementById("player2-inline-count");
+const topPiecesTitleEl = document.getElementById("top-pieces-title");
+const bottomPiecesTitleEl = document.getElementById("bottom-pieces-title");
 const viewBoardBtnEl = document.getElementById("view-board-btn");
 const viewP1BtnEl = document.getElementById("view-p1-btn");
 const viewP2BtnEl = document.getElementById("view-p2-btn");
@@ -515,11 +517,25 @@ function renderInlineRemainingPieces(player, targetEl) {
 }
 
 function updateTurnLabel() {
+  if (!turnIndicatorEl) {
+    return;
+  }
   if (game.isGameOver) {
     turnIndicatorEl.textContent = "Game Over 🏁";
     return;
   }
   turnIndicatorEl.textContent = `Turn: ${playerLabel(game.currentPlayer)} 🎯`;
+}
+
+function getInlineDisplayPlayers() {
+  return game.mode === "ai" ? { top: 2, bottom: 1 } : { top: 1, bottom: 2 };
+}
+
+function inlinePiecesLabel(player) {
+  if (game.mode === "ai") {
+    return player === 2 ? "🤖 AI Pieces" : "🧡 Human Pieces";
+  }
+  return player === 1 ? "🧡 Player 1 Pieces" : "💙 Player 2 Pieces";
 }
 
 function updateControlStates() {
@@ -604,13 +620,20 @@ function syncUI() {
   renderPiecePreview(2);
   renderRemainingPieces(1, player1RemainingEl);
   renderRemainingPieces(2, player2RemainingEl);
-  renderInlineRemainingPieces(1, player1InlineRemainingEl);
-  renderInlineRemainingPieces(2, player2InlineRemainingEl);
+  const order = getInlineDisplayPlayers();
+  renderInlineRemainingPieces(order.top, player1InlineRemainingEl);
+  renderInlineRemainingPieces(order.bottom, player2InlineRemainingEl);
+  if (topPiecesTitleEl) {
+    topPiecesTitleEl.textContent = inlinePiecesLabel(order.top);
+  }
+  if (bottomPiecesTitleEl) {
+    bottomPiecesTitleEl.textContent = inlinePiecesLabel(order.bottom);
+  }
   if (player1InlineCountEl) {
-    player1InlineCountEl.textContent = `${game.inventory[1].size}/21 left`;
+    player1InlineCountEl.textContent = `${game.inventory[order.top].size}/21 left`;
   }
   if (player2InlineCountEl) {
-    player2InlineCountEl.textContent = `${game.inventory[2].size}/21 left`;
+    player2InlineCountEl.textContent = `${game.inventory[order.bottom].size}/21 left`;
   }
   if (difficultySelectEl) {
     difficultySelectEl.value = game.difficulty;
@@ -1151,9 +1174,6 @@ function manualPass(player) {
 }
 
 function resetGame() {
-  if (isCompactLayout() && modeSelectEl.value !== "ai") {
-    modeSelectEl.value = "ai";
-  }
   game.mode = modeSelectEl.value;
   game.difficulty = difficultySelectEl ? difficultySelectEl.value : "medium";
   game.board = makeEmptyBoard();
@@ -1236,9 +1256,6 @@ function bindEvents() {
   });
 
   modeSelectEl.addEventListener("change", () => {
-    if (isCompactLayout() && modeSelectEl.value !== "ai") {
-      modeSelectEl.value = "ai";
-    }
     game.mode = modeSelectEl.value;
     if (difficultySelectEl) {
       difficultySelectEl.disabled = game.mode !== "ai";
@@ -1363,9 +1380,6 @@ function init() {
   precomputeTransforms();
   renderCoordinates();
   bindEvents();
-  if (isCompactLayout()) {
-    modeSelectEl.value = "ai";
-  }
   if (difficultySelectEl) {
     difficultySelectEl.value = "medium";
     difficultySelectEl.disabled = modeSelectEl.value !== "ai";
