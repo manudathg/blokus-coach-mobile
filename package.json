@@ -4,20 +4,22 @@
   "description": "Interactive Blokus learning app with full 2-player gameplay using all 21 official Blokus pieces.",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cap:sync:ios": "cap sync ios",
+    "cap:open:ios": "cap open ios"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/manudathg/blockus-mentor.git"
+    "url": "git+https://github.com/manudathg/blokus-coach-mobile.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/manudathg/blockus-mentor/issues"
+    "url": "https://github.com/manudathg/blokus-coach-mobile/issues"
   },
-  "homepage": "https://github.com/manudathg/blockus-mentor#readme",
+  "homepage": "https://github.com/manudathg/blokus-coach-mobile#readme",
   "dependencies": {
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",

@@ -2,22 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blokus Coach</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Corner Tiles Coach</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="hero">
         <p class="eyebrow">Learn + Play + Smile</p>
-        <h1>Blokus Coach 🎲✨</h1>
+        <h1>Corner Tiles Coach 🎲✨</h1>
         <p>Play full Blokus with all 21 pieces in either 2-player mode or Human vs AI mode. Great for family game night! 👨‍👩‍👧‍👦</p>
       </header>
 
+      <section class="panel mode-panel">
+        <div class="mode-controls mode-controls-external">
+          <div class="mode-row">
+            <select id="mode-select">
+              <option value="ai" selected>AI vs Human</option>
+              <option value="hvh">Human vs Human</option>
+            </select>
+            <select id="difficulty-select">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+            <button id="new-game-btn" type="button">New Game</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel trainer">
-        <div class="workspace-3col">
-          <aside id="player1-panel" class="player-panel p1-panel">
-            <h3>🧡 Player 1</h3>
+        <div id="workspace" class="workspace-3col">
+          <aside id="player1-panel" class="player-panel p1-panel legacy-panel">
+            <h3 id="player1-title">🧡 <input id="player1-name" class="name-input" type="text" value="Player 1" /></h3>
             <p id="player1-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
             <div id="player1-remaining" class="remaining-list"></div>
@@ -46,24 +63,54 @@
           </aside>
 
           <section class="center-panel">
-            <div class="mode-controls">
-              <h2 id="turn-indicator">Turn: Player 1</h2>
-              <div class="mode-row">
-                <label for="mode-select">Mode</label>
-                <select id="mode-select">
-                  <option value="hvh">Human vs Human</option>
-                  <option value="ai">Human vs AI</option>
-                </select>
-                <button id="new-game-btn" type="button">New Game</button>
+            <div class="inline-pieces inline-pieces-top">
+              <div class="inline-pieces-header">
+                <h3 id="top-pieces-title">🧡 Player 1 Pieces</h3>
+                <p id="player1-inline-count" class="inline-count">21 left</p>
               </div>
+              <div id="player1-inline-remaining" class="remaining-inline-grid"></div>
             </div>
 
-            <div id="board" class="board" aria-label="Blokus board"></div>
+            <div class="board-shell">
+              <div id="x-top" class="coord-x"></div>
+              <div class="board-row">
+                <div id="y-left" class="coord-y"></div>
+                <div id="board" class="board" aria-label="Blokus board"></div>
+              </div>
+            </div>
+            <div id="stage-controls" class="stage-controls">
+              <div class="stage-actions">
+                <button id="stage-flip-btn" type="button" class="action-possible"><span class="ico">⇋</span> Flip</button>
+                <button id="stage-rotate-btn" type="button" class="action-possible"><span class="ico">↻</span> Rotate</button>
+                <button id="stage-hint-btn" type="button" class="action-hint"><span class="ico">💡</span> Hint</button>
+                <button id="stage-pass-btn" type="button" class="action-pass"><span class="ico">⏹</span> Pass</button>
+                <button id="stage-play-btn" type="button" class="action-play"><span class="ico">▶</span> Play Piece</button>
+              </div>
+            </div>
+            <div class="inline-pieces inline-pieces-bottom">
+              <div class="inline-pieces-header">
+                <h3 id="bottom-pieces-title">💙 Player 2 Pieces</h3>
+                <p id="player2-inline-count" class="inline-count">21 left</p>
+              </div>
+              <div id="player2-inline-remaining" class="remaining-inline-grid"></div>
+            </div>
+            <section class="mobile-reasoning">
+              <div class="reasoning-grid-mobile">
+                <article class="reasoning-card human-card">
+                  <h3 id="reasoning-human-title">Human Suggestion 🧡</h3>
+                  <p id="reasoning-human-mobile" class="reasoning-text">Coach suggestions will appear here.</p>
+                </article>
+                <article class="reasoning-card ai-card">
+                  <h3 id="reasoning-ai-title">AI Thinking 🤖</h3>
+                  <p id="reasoning-ai-mobile" class="reasoning-text">AI strategy notes will appear here.</p>
+                </article>
+              </div>
+            </section>
             <p id="feedback" class="feedback" aria-live="polite"></p>
           </section>
 
-          <aside id="player2-panel" class="player-panel p2-panel">
-            <h3 id="player2-title">💙 Player 2</h3>
+          <aside id="player2-panel" class="player-panel p2-panel legacy-panel">
+            <h3 id="player2-title">💙 <input id="player2-name" class="name-input" type="text" value="Player 2" /></h3>
             <p id="player2-score" class="player-score">Tiles: 0 | Pieces left: 21</p>
             <h4>Remaining Pieces</h4>
             <div id="player2-remaining" class="remaining-list"></div>
@@ -119,6 +166,21 @@
             Official-style Blokus game rules (full guide)
           </a>
         </p>
+        <p class="rulebook-link">Algorithms and strategy references:</p>
+        <ul class="strategy-links">
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Minimax" target="_blank" rel="noopener noreferrer">Minimax search</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning" target="_blank" rel="noopener noreferrer">Alpha-beta pruning</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Monte_Carlo_tree_search" target="_blank" rel="noopener noreferrer">Monte Carlo Tree Search (MCTS)</a>
+          </li>
+          <li>
+            <a href="https://en.wikipedia.org/wiki/Polyomino" target="_blank" rel="noopener noreferrer">Polyomino strategy basics</a>
+          </li>
+        </ul>
       </section>
     </main>
 

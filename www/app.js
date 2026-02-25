@@ -30,16 +30,43 @@ const playerConfig = {
 };
 
 const boardEl = document.getElementById("board");
+const workspaceEl = document.getElementById("workspace");
+const xTopEl = document.getElementById("x-top");
+const xBottomEl = document.getElementById("x-bottom");
+const yLeftEl = document.getElementById("y-left");
+const yRightEl = document.getElementById("y-right");
+const player1InlineRemainingEl = document.getElementById("player1-inline-remaining");
+const player2InlineRemainingEl = document.getElementById("player2-inline-remaining");
+const player1InlineCountEl = document.getElementById("player1-inline-count");
+const player2InlineCountEl = document.getElementById("player2-inline-count");
+const topPiecesTitleEl = document.getElementById("top-pieces-title");
+const bottomPiecesTitleEl = document.getElementById("bottom-pieces-title");
+const viewBoardBtnEl = document.getElementById("view-board-btn");
+const viewP1BtnEl = document.getElementById("view-p1-btn");
+const viewP2BtnEl = document.getElementById("view-p2-btn");
+const stageRotateBtnEl = document.getElementById("stage-rotate-btn");
+const stageFlipBtnEl = document.getElementById("stage-flip-btn");
+const stageHintBtnEl = document.getElementById("stage-hint-btn");
+const stagePassBtnEl = document.getElementById("stage-pass-btn");
+const stagePlayBtnEl = document.getElementById("stage-play-btn");
+const reasoningHumanTitleEl = document.getElementById("reasoning-human-title");
+const reasoningAiTitleEl = document.getElementById("reasoning-ai-title");
+const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile");
+const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
+const difficultySelectEl = document.getElementById("difficulty-select");
 const player1PanelEl = document.getElementById("player1-panel");
 const player2PanelEl = document.getElementById("player2-panel");
+const player1TitleEl = document.getElementById("player1-title");
+const player1NameEl = document.getElementById("player1-name");
 const player1ScoreEl = document.getElementById("player1-score");
 const player2ScoreEl = document.getElementById("player2-score");
 const player1RemainingEl = document.getElementById("player1-remaining");
 const player2RemainingEl = document.getElementById("player2-remaining");
 const player2TitleEl = document.getElementById("player2-title");
+const player2NameEl = document.getElementById("player2-name");
 const controlsByPlayer = {
   1: {
     pieceSelect: document.getElementById("p1-piece-select"),
@@ -64,6 +91,7 @@ const controlsByPlayer = {
 const game = {
   board: [],
   mode: "hvh",
+  difficulty: "medium",
   currentPlayer: 1,
   hasPlaced: { 1: false, 2: false },
   inventory: { 1: new Set(), 2: new Set() },
@@ -75,7 +103,11 @@ const game = {
   isGameOver: false,
   consecutivePasses: 0,
   aiThinking: false,
-  reasoning: { 1: "", 2: "" }
+  reasoning: { 1: "", 2: "" },
+  playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
+  theme: "default",
+  mobileView: "board",
+  pendingAnchorByPlayer: { 1: null, 2: null }
 };
 
 const transformsByPiece = new Map();
@@ -85,14 +117,14 @@ function key(x, y) {
 }
 
 function playerLabel(player) {
-  if (game.mode === "ai" && player === 2) {
-    return "AI";
+  if (game.mode === "ai" && player === 1) {
+    return game.playerNames.ai || "AI";
   }
-  return playerConfig[player].name;
+  return game.playerNames[player] || playerConfig[player].name;
 }
 
 function isPlayerHuman(player) {
-  return game.mode !== "ai" || player === 1;
+  return game.mode !== "ai" || player === 2;
 }
 
 function updateTurnHighlight() {
@@ -101,7 +133,17 @@ function updateTurnHighlight() {
 }
 
 function updatePlayerTitles() {
-  player2TitleEl.textContent = game.mode === "ai" ? "🤖 AI" : "💙 Player 2";
+  if (game.mode === "ai") {
+    player1NameEl.value = game.playerNames.ai || "AI";
+    player1NameEl.disabled = true;
+    player2NameEl.value = game.playerNames[2] || "Human";
+    player2NameEl.disabled = false;
+  } else {
+    player1NameEl.value = game.playerNames[1] || "Player 1";
+    player1NameEl.disabled = false;
+    player2NameEl.value = game.playerNames[2] || "Player 2";
+    player2NameEl.disabled = false;
+  }
 }
 
 function setReasoning(player, text) {
@@ -109,8 +151,70 @@ function setReasoning(player, text) {
   controlsByPlayer[player].reasoningEl.textContent = text;
 }
 
+function renderCoordinates() {
+  if (xTopEl) {
+    xTopEl.innerHTML = "";
+  }
+  if (xBottomEl) {
+    xBottomEl.innerHTML = "";
+  }
+  if (yLeftEl) {
+    yLeftEl.innerHTML = "";
+  }
+  if (yRightEl) {
+    yRightEl.innerHTML = "";
+  }
+
+  for (let i = 1; i <= BOARD_SIZE; i += 1) {
+    const xTop = document.createElement("span");
+    xTop.textContent = String(i);
+    if (xTopEl) {
+      xTopEl.appendChild(xTop);
+    }
+
+    const xBottom = document.createElement("span");
+    xBottom.textContent = String(i);
+    if (xBottomEl) {
+      xBottomEl.appendChild(xBottom);
+    }
+
+    const yLeft = document.createElement("span");
+    yLeft.textContent = String(i);
+    if (yLeftEl) {
+      yLeftEl.appendChild(yLeft);
+    }
+
+    const yRight = document.createElement("span");
+    yRight.textContent = String(i);
+    if (yRightEl) {
+      yRightEl.appendChild(yRight);
+    }
+  }
+}
+
 function canUsePlayerControls(player) {
   return !game.isGameOver && !game.aiThinking && game.currentPlayer === player && isPlayerHuman(player);
+}
+
+function isCompactLayout() {
+  return window.matchMedia("(max-width: 820px)").matches;
+}
+
+function setMobileView(view) {
+  game.mobileView = view;
+  workspaceEl.classList.remove("mobile-view-p1", "mobile-view-p2");
+  if (view === "p1") {
+    workspaceEl.classList.add("mobile-view-p1");
+  }
+  if (view === "p2") {
+    workspaceEl.classList.add("mobile-view-p2");
+  }
+
+  if (viewBoardBtnEl && viewP1BtnEl && viewP2BtnEl) {
+    viewBoardBtnEl.classList.toggle("active", view === "board");
+    viewP1BtnEl.classList.toggle("active", view === "p1");
+    viewP2BtnEl.classList.toggle("active", view === "p2");
+  }
 }
 
 function normalizeCells(cells) {
@@ -274,6 +378,7 @@ function renderBoard() {
 
       if (previewSet.has(key(x, y))) {
         cellEl.classList.add(game.preview?.ok ? "preview-ok" : "preview-bad");
+        cellEl.classList.add(game.currentPlayer === 1 ? "preview-p1" : "preview-p2");
       }
       if (lastMoveSet.has(key(x, y))) {
         cellEl.classList.add("last-move");
@@ -370,12 +475,72 @@ function renderRemainingPieces(player, targetEl) {
   }
 }
 
+function renderInlineRemainingPieces(player, targetEl) {
+  if (!targetEl) {
+    return;
+  }
+  targetEl.innerHTML = "";
+
+  const ordered = [...pieces].sort((a, b) => b.cells.length - a.cells.length || a.id.localeCompare(b.id));
+
+  for (const piece of ordered) {
+    const available = game.inventory[player].has(piece.id);
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = `piece-pill ${playerConfig[player].className}`;
+    pill.dataset.player = String(player);
+    pill.dataset.pieceId = piece.id;
+    pill.title = `${piece.id} (${piece.cells.length})`;
+    pill.setAttribute("aria-label", `${piece.id} (${piece.cells.length})`);
+
+    const shapeEl = document.createElement("span");
+    shapeEl.className = "piece-shape";
+    const normalized = normalizeCells(piece.cells.map(([x, y]) => ({ x, y })));
+    const shapeSet = new Set(normalized.map((cell) => key(cell.x, cell.y)));
+    for (let y = 0; y < 5; y += 1) {
+      for (let x = 0; x < 5; x += 1) {
+        const dot = document.createElement("span");
+        dot.className = "piece-dot";
+        if (shapeSet.has(key(x, y))) {
+          dot.classList.add("on");
+        }
+        shapeEl.appendChild(dot);
+      }
+    }
+    pill.appendChild(shapeEl);
+
+    if (available && game.selectedPieceByPlayer[player] === piece.id) {
+      pill.classList.add("selected");
+    }
+    if (!available) {
+      pill.classList.add("used");
+    }
+    pill.disabled = !available || !canUsePlayerControls(player);
+    pill.draggable = false;
+    targetEl.appendChild(pill);
+  }
+}
+
 function updateTurnLabel() {
+  if (!turnIndicatorEl) {
+    return;
+  }
   if (game.isGameOver) {
     turnIndicatorEl.textContent = "Game Over 🏁";
     return;
   }
   turnIndicatorEl.textContent = `Turn: ${playerLabel(game.currentPlayer)} 🎯`;
+}
+
+function getInlineDisplayPlayers() {
+  return game.mode === "ai" ? { top: 1, bottom: 2 } : { top: 1, bottom: 2 };
+}
+
+function inlinePiecesLabel(player) {
+  if (game.mode === "ai") {
+    return player === 1 ? "🤖 AI Pieces" : "💙 Human Pieces";
+  }
+  return player === 1 ? "🧡 Player 1 Pieces" : "💙 Player 2 Pieces";
 }
 
 function updateControlStates() {
@@ -392,14 +557,73 @@ function updateControlStates() {
     control.hintBtn.disabled = !pieceEnabled;
     control.passBtn.disabled = !turnEnabled;
   }
+
+  if (stageFlipBtnEl && stageRotateBtnEl && stageHintBtnEl && stagePassBtnEl && stagePlayBtnEl) {
+    const player = game.currentPlayer;
+    const enabled = canUsePlayerControls(player) && game.inventory[player].size > 0;
+    const pending = game.pendingAnchorByPlayer[player];
+    const canPlay = enabled && pending && pending.ok;
+
+    stageFlipBtnEl.disabled = !enabled;
+    stageRotateBtnEl.disabled = !enabled;
+    stageHintBtnEl.disabled = !enabled;
+    stagePassBtnEl.disabled = !canUsePlayerControls(player);
+    stagePlayBtnEl.disabled = !canPlay;
+  }
+}
+
+function clearPendingPlacement(player) {
+  game.pendingAnchorByPlayer[player] = null;
+  if (game.currentPlayer === player) {
+    game.preview = null;
+  }
+}
+
+function setPendingPlacement(player, x, y, shape) {
+  const verdict = evaluatePlacement(player, x, y, shape);
+  const cells = getPlacedCells(x, y, shape);
+  game.pendingAnchorByPlayer[player] = { x, y, ok: verdict.ok, reason: verdict.reason, cells };
+  if (game.currentPlayer === player) {
+    game.preview = { cells, ok: verdict.ok };
+  }
+}
+
+function refreshPendingPlacement(player) {
+  const pending = game.pendingAnchorByPlayer[player];
+  const shape = getCurrentShape(player);
+  if (!pending || shape.length === 0) {
+    clearPendingPlacement(player);
+    return;
+  }
+  setPendingPlacement(player, pending.x, pending.y, shape);
 }
 
 function renderReasoning() {
-  controlsByPlayer[1].reasoningEl.textContent = game.reasoning[1] || "Pick a piece and have fun!";
-  controlsByPlayer[2].reasoningEl.textContent = game.reasoning[2] || "Waiting for a move.";
+  const p1Text = game.reasoning[1] || "Waiting for a move.";
+  const p2Text = game.reasoning[2] || "Pick a piece and have fun!";
+
+  controlsByPlayer[1].reasoningEl.textContent = p1Text;
+  controlsByPlayer[2].reasoningEl.textContent = p2Text;
+
+  if (reasoningHumanTitleEl) {
+    reasoningHumanTitleEl.textContent = game.mode === "ai" ? "Human Suggestion 🧡" : "Player 1 Suggestion 🧡";
+  }
+  if (reasoningAiTitleEl) {
+    reasoningAiTitleEl.textContent = game.mode === "ai" ? "AI Thinking 🤖" : "Player 2 Suggestion 💙";
+  }
+
+  if (reasoningHumanMobileEl) {
+    reasoningHumanMobileEl.textContent = game.mode === "ai" ? p2Text : p1Text;
+  }
+  if (reasoningAiMobileEl) {
+    reasoningAiMobileEl.textContent = game.mode === "ai" ? p1Text : p2Text;
+  }
 }
 
 function syncUI() {
+  if (!isCompactLayout() && game.mobileView !== "board") {
+    setMobileView("board");
+  }
   updatePlayerTitles();
   updateTurnLabel();
   renderPieceSelect(1);
@@ -408,6 +632,25 @@ function syncUI() {
   renderPiecePreview(2);
   renderRemainingPieces(1, player1RemainingEl);
   renderRemainingPieces(2, player2RemainingEl);
+  const order = getInlineDisplayPlayers();
+  renderInlineRemainingPieces(order.top, player1InlineRemainingEl);
+  renderInlineRemainingPieces(order.bottom, player2InlineRemainingEl);
+  if (topPiecesTitleEl) {
+    topPiecesTitleEl.textContent = inlinePiecesLabel(order.top);
+  }
+  if (bottomPiecesTitleEl) {
+    bottomPiecesTitleEl.textContent = inlinePiecesLabel(order.bottom);
+  }
+  if (player1InlineCountEl) {
+    player1InlineCountEl.textContent = `${game.inventory[order.top].size}/21 left`;
+  }
+  if (player2InlineCountEl) {
+    player2InlineCountEl.textContent = `${game.inventory[order.bottom].size}/21 left`;
+  }
+  if (difficultySelectEl) {
+    difficultySelectEl.value = game.difficulty;
+    difficultySelectEl.disabled = game.mode !== "ai";
+  }
   updateControlStates();
   updateTurnHighlight();
   renderBoard();
@@ -526,9 +769,9 @@ function scoreMove(player, move) {
   });
 }
 
-function findBestMove(player) {
+function collectLegalMoves(player) {
   const remaining = pieces.filter((piece) => game.inventory[player].has(piece.id));
-  let bestMove = null;
+  const moves = [];
 
   for (const piece of remaining) {
     for (const flipped of [false, true]) {
@@ -544,18 +787,63 @@ function findBestMove(player) {
 
             const move = { pieceId: piece.id, shape, x, y, rotation, flipped };
             const metrics = scoreMove(player, move);
-            const candidate = { ...move, metrics };
-
-            if (!bestMove || candidate.metrics.score > bestMove.metrics.score) {
-              bestMove = candidate;
-            }
+            moves.push({ ...move, metrics });
           }
         }
       }
     }
   }
 
-  return bestMove;
+  moves.sort((a, b) => b.metrics.score - a.metrics.score);
+  return moves;
+}
+
+function algorithmLabelForDifficulty(level) {
+  if (level === "easy") {
+    return "stochastic legal-move sampler";
+  }
+  if (level === "hard") {
+    return "two-ply minimax with heuristic evaluation";
+  }
+  return "one-ply heuristic search with corner-mobility scoring";
+}
+
+function findBestMove(player) {
+  const moves = collectLegalMoves(player);
+  return moves[0] ?? null;
+}
+
+function chooseMoveForDifficulty(player, difficulty) {
+  const moves = collectLegalMoves(player);
+  if (moves.length === 0) {
+    return null;
+  }
+
+  if (difficulty === "easy") {
+    const poolSize = Math.min(8, moves.length);
+    return moves[Math.floor(Math.random() * poolSize)];
+  }
+
+  if (difficulty === "hard") {
+    const opponent = player === 1 ? 2 : 1;
+    const pool = moves.slice(0, Math.min(12, moves.length));
+    let best = null;
+
+    for (const move of pool) {
+      const hardScore = withTemporaryMove(player, move, () => {
+        const oppBest = findBestMove(opponent);
+        const oppPressure = oppBest ? oppBest.metrics.score : 0;
+        const ownCorners = countCornerEntries(player);
+        return move.metrics.score - oppPressure * 0.65 + ownCorners * 0.75;
+      });
+      if (!best || hardScore > best.hardScore) {
+        best = { ...move, hardScore };
+      }
+    }
+    return best ?? moves[0];
+  }
+
+  return moves[0];
 }
 
 function describeMove(player, move, intent) {
@@ -574,44 +862,44 @@ function describeMove(player, move, intent) {
 }
 
 function applyHumanRecommendation() {
-  if (game.mode !== "ai" || game.currentPlayer !== 1 || game.isGameOver) {
+  if (game.mode !== "ai" || game.currentPlayer !== 2 || game.isGameOver) {
     return;
   }
 
-  const best = findBestMove(1);
+  const best = chooseMoveForDifficulty(2, game.difficulty);
   if (!best) {
-    setReasoning(1, "No legal move available. You can pass this turn.");
+    setReasoning(2, "No legal move available. You can pass this turn.");
     return;
   }
 
-  game.selectedPieceByPlayer[1] = best.pieceId;
-  game.rotationByPlayer[1] = best.rotation;
-  game.flippedByPlayer[1] = best.flipped;
-  game.preview = { cells: getPlacedCells(best.x, best.y, best.shape), ok: true };
+  game.selectedPieceByPlayer[2] = best.pieceId;
+  game.rotationByPlayer[2] = best.rotation;
+  game.flippedByPlayer[2] = best.flipped;
+  setPendingPlacement(2, best.x, best.y, best.shape);
 
   setReasoning(
-    1,
-    `${describeMove(1, best, "Coach pick:")} You can play something else if you want, and I will adapt next turn.`
+    2,
+    `${describeMove(2, best, "Coach pick:")} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
   );
 }
 
 function refreshHumanChoiceReasoning() {
-  if (game.mode !== "ai" || game.currentPlayer !== 1 || game.isGameOver) {
+  if (game.mode !== "ai" || game.currentPlayer !== 2 || game.isGameOver) {
     return;
   }
 
-  const best = findBestMove(1);
-  const selected = game.selectedPieceByPlayer[1];
+  const best = chooseMoveForDifficulty(2, game.difficulty);
+  const selected = game.selectedPieceByPlayer[2];
   if (!best || !selected) {
     return;
   }
 
   if (selected === best.pieceId) {
-    setReasoning(1, `${describeMove(1, best, "Nice choice!")} This matches the current best recommendation.`);
+    setReasoning(2, `${describeMove(2, best, "Nice choice!")} This matches the current best recommendation. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`);
   } else {
     setReasoning(
-      1,
-      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn.`
+      2,
+      `You chose ${selected}. Coach top pick is ${best.pieceId} at x:${best.x + 1}, y:${best.y + 1} to keep more corner paths open. Your move can still work, and I will re-optimize after this turn. Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
   }
 }
@@ -635,7 +923,7 @@ function finishGame() {
   if (p1Tiles === p2Tiles) {
     setFeedback(`Game over: tie at ${p1Tiles}-${p2Tiles}.`, "good");
   } else {
-    const winner = p1Tiles > p2Tiles ? "Player 1" : playerLabel(2);
+    const winner = p1Tiles > p2Tiles ? playerLabel(1) : playerLabel(2);
     setFeedback(`Game over: ${winner} wins ${Math.max(p1Tiles, p2Tiles)}-${Math.min(p1Tiles, p2Tiles)}.`, "good");
   }
   setReasoning(1, "Game finished. Great thinking and teamwork! 🏁");
@@ -667,13 +955,14 @@ function startTurn(player) {
 
   game.consecutivePasses = 0;
   game.preview = null;
+  clearPendingPlacement(player);
   syncUI();
 
-  const aiTurn = game.mode === "ai" && player === 2;
+  const aiTurn = game.mode === "ai" && player === 1;
   if (aiTurn) {
-    setReasoning(2, "Scanning the board for the strongest move...");
+    setReasoning(1, "Scanning the board for the strongest move...");
     runAiTurn();
-  } else if (game.mode === "ai" && player === 1) {
+  } else if (game.mode === "ai" && player === 2) {
     applyHumanRecommendation();
     syncUI();
   } else {
@@ -691,7 +980,7 @@ function tryPlaceAt(x, y) {
     return;
   }
 
-  if (game.mode === "ai" && game.currentPlayer === 2) {
+  if (game.mode === "ai" && game.currentPlayer === 1) {
     return;
   }
 
@@ -703,18 +992,47 @@ function tryPlaceAt(x, y) {
     return;
   }
 
-  const verdict = evaluatePlacement(player, x, y, shape);
-  if (!verdict.ok) {
-    setFeedback(verdict.reason, "bad");
-    game.preview = { cells: getPlacedCells(x, y, shape), ok: false };
-    renderBoard();
+  const resolved = isCompactLayout()
+    ? resolveAnchorForTap(player, x, y, shape)
+    : { x, y, verdict: evaluatePlacement(player, x, y, shape) };
+  const { x: anchorX, y: anchorY, verdict } = resolved;
+  const pending = game.pendingAnchorByPlayer[player];
+
+  if (pending && pending.ok && pending.x === anchorX && pending.y === anchorY && verdict.ok) {
+    playPendingMove(player);
     return;
   }
 
-  applyMove(player, pieceId, shape, x, y);
+  setPendingPlacement(player, anchorX, anchorY, shape);
+  if (!verdict.ok) {
+    setFeedback(verdict.reason, "bad");
+  } else {
+    setFeedback(`Preview at x:${anchorX + 1}, y:${anchorY + 1}. Tap again here or press Play Piece.`, "good");
+  }
+  syncUI();
+}
+
+function playPendingMove(player) {
+  if (!canUsePlayerControls(player)) {
+    return;
+  }
+  const pending = game.pendingAnchorByPlayer[player];
+  const pieceId = game.selectedPieceByPlayer[player];
+  const shape = getCurrentShape(player);
+  if (!pending || !pieceId || shape.length === 0) {
+    setFeedback("Select a piece and place it on the board first.", "bad");
+    return;
+  }
+  if (!pending.ok) {
+    setFeedback(pending.reason, "bad");
+    return;
+  }
+
+  applyMove(player, pieceId, shape, pending.x, pending.y);
+  clearPendingPlacement(player);
   setFeedback(`${playerLabel(player)} placed ${pieceId}.`, "good");
-  if (game.mode === "ai" && player === 1) {
-    setReasoning(1, `Played ${pieceId} at x:${x + 1}, y:${y + 1}. Recomputing best plan for your next turn...`);
+  if (game.mode === "ai" && player === 2) {
+    setReasoning(2, `Played ${pieceId} at x:${pending.x + 1}, y:${pending.y + 1}. Recomputing best plan for your next turn...`);
   } else {
     setReasoning(player, `Great move with ${pieceId}!`);
   }
@@ -722,30 +1040,58 @@ function tryPlaceAt(x, y) {
   endTurn();
 }
 
-function updatePreviewAt(x, y) {
-  if (game.isGameOver || game.aiThinking) {
+function blurActiveInput() {
+  const active = document.activeElement;
+  if (!active) {
     return;
   }
 
-  if (game.mode === "ai" && game.currentPlayer === 2) {
-    game.preview = null;
-    renderBoard();
-    return;
+  const isEditable =
+    active.tagName === "INPUT" ||
+    active.tagName === "TEXTAREA" ||
+    active.tagName === "SELECT" ||
+    active.isContentEditable;
+
+  if (isEditable && typeof active.blur === "function") {
+    active.blur();
+  }
+}
+
+function placeFromBoardEvent(x, y) {
+  blurActiveInput();
+  tryPlaceAt(x, y);
+}
+
+function resolveAnchorForTap(player, tapX, tapY, shape) {
+  let best = null;
+  const checked = new Set();
+
+  for (const cell of shape) {
+    const anchorX = tapX - cell.x;
+    const anchorY = tapY - cell.y;
+    const k = key(anchorX, anchorY);
+    if (checked.has(k)) {
+      continue;
+    }
+    checked.add(k);
+
+    const verdict = evaluatePlacement(player, anchorX, anchorY, shape);
+    if (!verdict.ok) {
+      continue;
+    }
+
+    // Prefer anchors where the tapped square maps to a piece cell near the top-left of the piece.
+    const rank = Math.abs(cell.x) + Math.abs(cell.y);
+    if (!best || rank < best.rank) {
+      best = { x: anchorX, y: anchorY, verdict, rank };
+    }
   }
 
-  const shape = getCurrentShape(game.currentPlayer);
-  if (shape.length === 0) {
-    game.preview = null;
-    renderBoard();
-    return;
+  if (best) {
+    return { x: best.x, y: best.y, verdict: best.verdict };
   }
 
-  const verdict = evaluatePlacement(game.currentPlayer, x, y, shape);
-  game.preview = {
-    cells: getPlacedCells(x, y, shape),
-    ok: verdict.ok
-  };
-  renderBoard();
+  return { x: tapX, y: tapY, verdict: evaluatePlacement(player, tapX, tapY, shape) };
 }
 
 function runAiTurn() {
@@ -754,10 +1100,10 @@ function runAiTurn() {
   }
 
   game.aiThinking = true;
-  setFeedback("AI is thinking... 🤔", "good");
+  setFeedback(`AI is thinking... (${game.difficulty}) 🤔`, "good");
 
   setTimeout(() => {
-    const move = findBestMove(2);
+    const move = chooseMoveForDifficulty(1, game.difficulty);
     if (!move) {
       game.aiThinking = false;
       game.consecutivePasses += 1;
@@ -766,20 +1112,20 @@ function runAiTurn() {
         return;
       }
       setFeedback("AI has no legal moves and passes.", "bad");
-      setReasoning(2, "No legal move was available, so passing preserves future flexibility.");
-      startTurn(1);
+      setReasoning(1, "No legal move was available, so passing preserves future flexibility.");
+      startTurn(2);
       return;
     }
 
-    const anticipated = withTemporaryMove(2, move, () => findBestMove(1));
-    applyMove(2, move.pieceId, move.shape, move.x, move.y);
+    const anticipated = withTemporaryMove(1, move, () => chooseMoveForDifficulty(2, game.difficulty));
+    applyMove(1, move.pieceId, move.shape, move.x, move.y);
     setFeedback(`AI placed ${move.pieceId} at x:${move.x + 1}, y:${move.y + 1}.`, "good");
     const anticipationText = anticipated
       ? `I expect you may try ${anticipated.pieceId} near x:${anticipated.x + 1}, y:${anticipated.y + 1}.`
       : "I don't see a strong immediate reply for you.";
     setReasoning(
-      2,
-      `${describeMove(2, move, "I chose")} ${anticipationText} I'm optimizing for more future corners and fewer options for you.`
+      1,
+      `${describeMove(1, move, "I chose")} ${anticipationText} Algorithm: ${algorithmLabelForDifficulty(game.difficulty)} (${game.difficulty}).`
     );
     game.aiThinking = false;
     syncUI();
@@ -804,12 +1150,12 @@ function findHint(player) {
     for (let x = 0; x < BOARD_SIZE; x += 1) {
       const verdict = evaluatePlacement(player, x, y, shape);
       if (verdict.ok) {
-        game.preview = { cells: getPlacedCells(x, y, shape), ok: true };
+        setPendingPlacement(player, x, y, shape);
         setFeedback(`Hint: try x:${x + 1}, y:${y + 1}.`, "good");
-        if (game.mode === "ai" && player === 1) {
-          setReasoning(1, `Hint targets x:${x + 1}, y:${y + 1} using ${pieceId} to keep your corner chain alive.`);
+        if (game.mode === "ai" && player === 2) {
+          setReasoning(2, `Hint targets x:${x + 1}, y:${y + 1} using ${pieceId} to keep your corner chain alive.`);
         }
-        renderBoard();
+        syncUI();
         return;
       }
     }
@@ -841,6 +1187,7 @@ function manualPass(player) {
 
 function resetGame() {
   game.mode = modeSelectEl.value;
+  game.difficulty = difficultySelectEl ? difficultySelectEl.value : "medium";
   game.board = makeEmptyBoard();
   game.currentPlayer = 1;
   game.hasPlaced = { 1: false, 2: false };
@@ -853,15 +1200,16 @@ function resetGame() {
   game.flippedByPlayer = { 1: false, 2: false };
   game.preview = null;
   game.lastMoveCells = [];
+  game.pendingAnchorByPlayer = { 1: null, 2: null };
   game.isGameOver = false;
   game.consecutivePasses = 0;
   game.aiThinking = false;
   game.reasoning = {
-    1: game.mode === "ai" ? "Coach is finding your best opening..." : "Your turn strategy notes will appear here.",
-    2: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 2 strategy notes will appear here."
+    1: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 1 strategy notes will appear here.",
+    2: game.mode === "ai" ? "Coach is finding your best opening..." : "Player 2 strategy notes will appear here."
   };
 
-  setFeedback("New game started. Player 1 begins from top-left corner. 🎉", "good");
+  setFeedback(`New game started. ${playerLabel(1)} begins from top-left corner. 🎉`, "good");
   syncUI();
 }
 
@@ -877,10 +1225,9 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = event.target.value;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
-      if (player === 1) {
+      clearPendingPlacement(player);
+      syncUI();
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -891,10 +1238,9 @@ function bindEvents() {
       }
 
       game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
-      if (player === 1) {
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -905,10 +1251,9 @@ function bindEvents() {
       }
 
       game.flippedByPlayer[player] = !game.flippedByPlayer[player];
-      game.preview = null;
-      renderPiecePreview(player);
-      renderBoard();
-      if (player === 1) {
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 2) {
         refreshHumanChoiceReasoning();
       }
     });
@@ -922,31 +1267,140 @@ function bindEvents() {
     startTurn(1);
   });
 
-  boardEl.addEventListener("mousemove", (event) => {
+  modeSelectEl.addEventListener("change", () => {
+    game.mode = modeSelectEl.value;
+    if (difficultySelectEl) {
+      difficultySelectEl.disabled = game.mode !== "ai";
+    }
+    syncUI();
+  });
+
+  if (difficultySelectEl) {
+    difficultySelectEl.addEventListener("change", () => {
+      game.difficulty = difficultySelectEl.value;
+      if (game.mode === "ai" && game.currentPlayer === 2 && !game.isGameOver) {
+        applyHumanRecommendation();
+      }
+      syncUI();
+    });
+  }
+
+  if (stageRotateBtnEl && stageFlipBtnEl && stageHintBtnEl && stagePassBtnEl && stagePlayBtnEl) {
+    stageRotateBtnEl.addEventListener("click", () => {
+      const player = game.currentPlayer;
+      if (!canUsePlayerControls(player)) {
+        return;
+      }
+      game.rotationByPlayer[player] = (game.rotationByPlayer[player] + 1) % 4;
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 2) {
+        refreshHumanChoiceReasoning();
+      }
+    });
+
+    stageFlipBtnEl.addEventListener("click", () => {
+      const player = game.currentPlayer;
+      if (!canUsePlayerControls(player)) {
+        return;
+      }
+      game.flippedByPlayer[player] = !game.flippedByPlayer[player];
+      refreshPendingPlacement(player);
+      syncUI();
+      if (player === 2) {
+        refreshHumanChoiceReasoning();
+      }
+    });
+
+    stageHintBtnEl.addEventListener("click", () => findHint(game.currentPlayer));
+    stagePassBtnEl.addEventListener("click", () => manualPass(game.currentPlayer));
+    stagePlayBtnEl.addEventListener("click", () => playPendingMove(game.currentPlayer));
+  }
+
+  if (viewBoardBtnEl && viewP1BtnEl && viewP2BtnEl) {
+    viewBoardBtnEl.addEventListener("click", () => setMobileView("board"));
+    viewP1BtnEl.addEventListener("click", () => setMobileView("p1"));
+    viewP2BtnEl.addEventListener("click", () => setMobileView("p2"));
+  }
+
+  const bindInlinePiecePicker = (targetEl) => {
+    if (!targetEl) {
+      return;
+    }
+    targetEl.addEventListener("click", (event) => {
+      const pill = event.target.closest(".piece-pill");
+      if (!pill) {
+        return;
+      }
+      const player = Number(pill.dataset.player);
+      const pieceId = pill.dataset.pieceId;
+      if (!player || !pieceId || !canUsePlayerControls(player)) {
+        return;
+      }
+      game.selectedPieceByPlayer[player] = pieceId;
+      game.rotationByPlayer[player] = 0;
+      game.flippedByPlayer[player] = false;
+      clearPendingPlacement(player);
+      if (player === 2) {
+        refreshHumanChoiceReasoning();
+      }
+      syncUI();
+    });
+
+  };
+
+  bindInlinePiecePicker(player1InlineRemainingEl);
+  bindInlinePiecePicker(player2InlineRemainingEl);
+
+  player1NameEl.addEventListener("input", () => {
+    game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
+    updatePlayerTitles();
+    updateTurnLabel();
+  });
+
+  player2NameEl.addEventListener("input", () => {
+    game.playerNames[2] = (player2NameEl.value || "").trim() || "Player 2";
+    if (game.mode !== "ai") {
+      updatePlayerTitles();
+      updateTurnLabel();
+    }
+  });
+
+  boardEl.addEventListener("pointerup", (event) => {
     const cell = event.target.closest(".cell");
     if (!cell) {
       return;
     }
-    updatePreviewAt(Number(cell.dataset.x), Number(cell.dataset.y));
+    event.preventDefault();
+    placeFromBoardEvent(Number(cell.dataset.x), Number(cell.dataset.y));
   });
 
-  boardEl.addEventListener("mouseleave", () => {
-    game.preview = null;
-    renderBoard();
-  });
-
-  boardEl.addEventListener("click", (event) => {
-    const cell = event.target.closest(".cell");
-    if (!cell) {
-      return;
+  window.addEventListener("resize", () => {
+    if (!isCompactLayout()) {
+      setMobileView("board");
+    } else if (!["board", "p1", "p2"].includes(game.mobileView)) {
+      setMobileView("board");
     }
-    tryPlaceAt(Number(cell.dataset.x), Number(cell.dataset.y));
   });
+
+  document.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+  }, { passive: false });
 }
 
 function init() {
   precomputeTransforms();
+  renderCoordinates();
   bindEvents();
+  if (difficultySelectEl) {
+    difficultySelectEl.value = "medium";
+    difficultySelectEl.disabled = modeSelectEl.value !== "ai";
+    game.difficulty = difficultySelectEl.value;
+  }
+  game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
+  game.playerNames[2] = (player2NameEl.value || "").trim() || "Human";
+  game.playerNames.ai = "AI";
+  setMobileView("board");
   resetGame();
   startTurn(1);
 }
