@@ -379,6 +379,9 @@ function renderBoard() {
       if (previewSet.has(key(x, y))) {
         cellEl.classList.add(game.preview?.ok ? "preview-ok" : "preview-bad");
         cellEl.classList.add(game.currentPlayer === 1 ? "preview-p1" : "preview-p2");
+        if (game.preview?.kind === "suggested") {
+          cellEl.classList.add("preview-suggested");
+        }
       }
       if (lastMoveSet.has(key(x, y))) {
         cellEl.classList.add("last-move");
@@ -579,12 +582,12 @@ function clearPendingPlacement(player) {
   }
 }
 
-function setPendingPlacement(player, x, y, shape) {
+function setPendingPlacement(player, x, y, shape, kind = "manual") {
   const verdict = evaluatePlacement(player, x, y, shape);
   const cells = getPlacedCells(x, y, shape);
-  game.pendingAnchorByPlayer[player] = { x, y, ok: verdict.ok, reason: verdict.reason, cells };
+  game.pendingAnchorByPlayer[player] = { x, y, ok: verdict.ok, reason: verdict.reason, cells, kind };
   if (game.currentPlayer === player) {
-    game.preview = { cells, ok: verdict.ok };
+    game.preview = { cells, ok: verdict.ok, kind };
   }
 }
 
@@ -595,7 +598,7 @@ function refreshPendingPlacement(player) {
     clearPendingPlacement(player);
     return;
   }
-  setPendingPlacement(player, pending.x, pending.y, shape);
+  setPendingPlacement(player, pending.x, pending.y, shape, pending.kind || "manual");
 }
 
 function renderReasoning() {
@@ -875,7 +878,7 @@ function applyHumanRecommendation() {
   game.selectedPieceByPlayer[2] = best.pieceId;
   game.rotationByPlayer[2] = best.rotation;
   game.flippedByPlayer[2] = best.flipped;
-  setPendingPlacement(2, best.x, best.y, best.shape);
+  setPendingPlacement(2, best.x, best.y, best.shape, "suggested");
 
   setReasoning(
     2,
