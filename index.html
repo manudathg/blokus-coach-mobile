@@ -17,12 +17,10 @@
       <section class="panel mode-panel">
         <div class="mode-controls mode-controls-external">
           <div class="mode-row">
-            <label for="mode-select">Mode</label>
             <select id="mode-select">
+              <option value="ai" selected>AI vs Human</option>
               <option value="hvh">Human vs Human</option>
-              <option value="ai">AI vs Human</option>
             </select>
-            <label for="difficulty-select">Level</label>
             <select id="difficulty-select">
               <option value="easy">Easy</option>
               <option value="medium" selected>Medium</option>
@@ -89,6 +87,13 @@
                 <button id="stage-play-btn" type="button" class="action-play"><span class="ico">▶</span> Play Piece</button>
               </div>
             </div>
+            <div class="inline-pieces inline-pieces-bottom">
+              <div class="inline-pieces-header">
+                <h3 id="bottom-pieces-title">💙 Player 2 Pieces</h3>
+                <p id="player2-inline-count" class="inline-count">21 left</p>
+              </div>
+              <div id="player2-inline-remaining" class="remaining-inline-grid"></div>
+            </div>
             <section class="mobile-reasoning">
               <div class="reasoning-grid-mobile">
                 <article class="reasoning-card human-card">
@@ -101,14 +106,6 @@
                 </article>
               </div>
             </section>
-
-            <div class="inline-pieces inline-pieces-bottom">
-              <div class="inline-pieces-header">
-                <h3 id="bottom-pieces-title">💙 Player 2 Pieces</h3>
-                <p id="player2-inline-count" class="inline-count">21 left</p>
-              </div>
-              <div id="player2-inline-remaining" class="remaining-inline-grid"></div>
-            </div>
             <p id="feedback" class="feedback" aria-live="polite"></p>
           </section>
 
