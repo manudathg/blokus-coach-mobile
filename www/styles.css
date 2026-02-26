@@ -2,7 +2,7 @@
   --bg: #fff8e8;
   --ink: #172233;
   --panel: #eaf4ff;
-  --p1: #bf0a30;
+  --p1: #900d09;
   --p2: #004f98;
   --good: #0f9d58;
   --bad: #c62828;
@@ -267,7 +267,7 @@ button:disabled {
 }
 
 .cell.preview-bad {
-  opacity: 0.72;
+  opacity: 1;
 }
 
 .cell.preview-p1.preview-ok {
@@ -286,8 +286,14 @@ button:disabled {
 }
 
 .cell.preview-bad {
-  background: #ff9f9f;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82), 0 0 6px rgba(255, 95, 95, 0.32);
+  background: #828282;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+}
+
+.cell.preview-p1.preview-bad,
+.cell.preview-p2.preview-bad {
+  background: #828282;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
 }
 
 .cell.corner {
@@ -393,15 +399,15 @@ button:disabled {
 }
 
 .piece-pill.p1 {
-  color: var(--p1);
-  background: #f8fbff;
-  border-color: #9d9fb0;
+  color: #ffffff;
+  background: var(--p1);
+  border-color: #b6413d;
 }
 
 .piece-pill.p2 {
-  color: var(--p2);
-  background: #f8fbff;
-  border-color: #92aacd;
+  color: #ffffff;
+  background: var(--p2);
+  border-color: #4d86be;
 }
 
 .piece-pill.selected {
@@ -540,13 +546,15 @@ button.ghost {
 }
 
 .reasoning-card.human-card {
-  background: #f2e3e3;
-  border-color: #cfb3b3;
+  background: #900d09;
+  border-color: #b6413d;
+  color: #ffffff;
 }
 
 .reasoning-card.ai-card {
-  background: #ddebf9;
-  border-color: #a8c5e4;
+  background: #004f98;
+  border-color: #4d86be;
+  color: #ffffff;
 }
 
 .reasoning-card h3 {

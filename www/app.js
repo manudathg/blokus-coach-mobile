@@ -103,6 +103,8 @@ const game = {
   isGameOver: false,
   consecutivePasses: 0,
   aiThinking: false,
+  aiTurnTimer: null,
+  modeChangeToken: 0,
   reasoning: { 1: "", 2: "" },
   playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
   theme: "default",
@@ -920,6 +922,10 @@ function applyMove(player, pieceId, shape, anchorX, anchorY) {
 }
 
 function finishGame() {
+  if (game.aiTurnTimer) {
+    clearTimeout(game.aiTurnTimer);
+    game.aiTurnTimer = null;
+  }
   game.isGameOver = true;
   const { p1Tiles, p2Tiles } = updateScore();
 
@@ -1105,7 +1111,12 @@ function runAiTurn() {
   game.aiThinking = true;
   setFeedback(`AI is thinking... (${game.difficulty}) 🤔`, "good");
 
-  setTimeout(() => {
+  if (game.aiTurnTimer) {
+    clearTimeout(game.aiTurnTimer);
+    game.aiTurnTimer = null;
+  }
+  game.aiTurnTimer = setTimeout(() => {
+    game.aiTurnTimer = null;
     const move = chooseMoveForDifficulty(1, game.difficulty);
     if (!move) {
       game.aiThinking = false;
@@ -1189,6 +1200,10 @@ function manualPass(player) {
 }
 
 function resetGame() {
+  if (game.aiTurnTimer) {
+    clearTimeout(game.aiTurnTimer);
+    game.aiTurnTimer = null;
+  }
   game.mode = modeSelectEl.value;
   game.difficulty = difficultySelectEl ? difficultySelectEl.value : "medium";
   game.board = makeEmptyBoard();
@@ -1270,13 +1285,29 @@ function bindEvents() {
     startTurn(1);
   });
 
-  modeSelectEl.addEventListener("change", () => {
-    game.mode = modeSelectEl.value;
+  const applyModeSelection = () => {
+    const nextMode = modeSelectEl.value;
+    if (game.mode === nextMode && game.board.length > 0) {
+      return;
+    }
+    game.mode = nextMode;
     if (difficultySelectEl) {
       difficultySelectEl.disabled = game.mode !== "ai";
     }
     syncUI();
-  });
+
+    game.modeChangeToken += 1;
+    const token = game.modeChangeToken;
+    setTimeout(() => {
+      if (token !== game.modeChangeToken) {
+        return;
+      }
+      resetGame();
+      startTurn(1);
+    }, 0);
+  };
+  modeSelectEl.addEventListener("input", applyModeSelection);
+  modeSelectEl.addEventListener("change", applyModeSelection);
 
   if (difficultySelectEl) {
     difficultySelectEl.addEventListener("change", () => {
