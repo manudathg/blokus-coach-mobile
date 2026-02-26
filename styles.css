@@ -2,8 +2,8 @@
   --bg: #fff8e8;
   --ink: #172233;
   --panel: #eaf4ff;
-  --p1: #ff2800;
-  --p2: #008ecc;
+  --p1: #bf0a30;
+  --p2: #004f98;
   --good: #0f9d58;
   --bad: #c62828;
   --box-bg: #eaf4ff;
@@ -234,10 +234,10 @@ button:disabled {
   grid-template-columns: repeat(14, 1fr);
   grid-template-rows: repeat(14, 1fr);
   gap: 2px;
-  background: linear-gradient(150deg, #235673, #153648);
+  background: #00ccff;
   border-radius: 12px;
   padding: 4px;
-  border: 1px solid #0b2a3e;
+  border: 1px solid #00ccff;
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.25),
     inset -2px -2px 0 rgba(0, 0, 0, 0.28),
@@ -393,15 +393,15 @@ button:disabled {
 }
 
 .piece-pill.p1 {
-  color: #8a1f15;
-  background: #ffe2dc;
-  border-color: #ffb9ab;
+  color: var(--p1);
+  background: #f8fbff;
+  border-color: #9d9fb0;
 }
 
 .piece-pill.p2 {
-  color: #0c4f70;
-  background: #ddf4ff;
-  border-color: #97d7ef;
+  color: var(--p2);
+  background: #f8fbff;
+  border-color: #92aacd;
 }
 
 .piece-pill.selected {
