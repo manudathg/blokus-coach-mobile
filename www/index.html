@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Corner Tiles Coach</title>
+    <title>Block Puzzle Coach</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="hero">
         <p class="eyebrow">Learn + Play + Smile</p>
-        <h1>Corner Tiles Coach 🎲✨</h1>
+        <h1>Block Puzzle Coach 🎲✨</h1>
         <p>Play full Blokus with all 21 pieces in either 2-player mode or Human vs AI mode. Great for family game night! 👨‍👩‍👧‍👦</p>
       </header>
 
@@ -78,6 +78,7 @@
                 <div id="board" class="board" aria-label="Blokus board"></div>
               </div>
             </div>
+            <p id="feedback" class="feedback" aria-live="polite"></p>
             <div id="stage-controls" class="stage-controls">
               <div class="stage-actions">
                 <button id="stage-flip-btn" type="button" class="action-possible"><span class="ico">⇋</span> Flip</button>
@@ -106,7 +107,6 @@
                 </article>
               </div>
             </section>
-            <p id="feedback" class="feedback" aria-live="polite"></p>
           </section>
 
           <aside id="player2-panel" class="player-panel p2-panel legacy-panel">
@@ -160,6 +160,8 @@
             <p>Game ends when both players cannot move. Higher tile count wins.</p>
           </article>
         </div>
+        <h3 class="pieces-heading">Pieces</h3>
+        <div id="pieces-reference" class="pieces-reference-grid"></div>
         <p class="rulebook-link">
           Full rulebook:
           <a href="https://www.ultraboardgames.com/blokus/game-rules.php" target="_blank" rel="noopener noreferrer">

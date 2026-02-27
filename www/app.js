@@ -53,6 +53,8 @@ const reasoningHumanTitleEl = document.getElementById("reasoning-human-title");
 const reasoningAiTitleEl = document.getElementById("reasoning-ai-title");
 const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile");
 const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
+const reasoningGridMobileEl = document.querySelector(".reasoning-grid-mobile");
+const piecesReferenceEl = document.getElementById("pieces-reference");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
@@ -526,6 +528,42 @@ function renderInlineRemainingPieces(player, targetEl) {
   }
 }
 
+function renderPiecesReference() {
+  if (!piecesReferenceEl) {
+    return;
+  }
+  piecesReferenceEl.innerHTML = "";
+
+  const ordered = [...pieces].sort((a, b) => b.cells.length - a.cells.length || a.id.localeCompare(b.id));
+  for (const piece of ordered) {
+    const card = document.createElement("article");
+    card.className = "piece-ref-card";
+
+    const shapeEl = document.createElement("span");
+    shapeEl.className = "piece-shape";
+    const normalized = normalizeCells(piece.cells.map(([x, y]) => ({ x, y })));
+    const shapeSet = new Set(normalized.map((cell) => key(cell.x, cell.y)));
+    for (let y = 0; y < 5; y += 1) {
+      for (let x = 0; x < 5; x += 1) {
+        const dot = document.createElement("span");
+        dot.className = "piece-dot";
+        if (shapeSet.has(key(x, y))) {
+          dot.classList.add("on");
+        }
+        shapeEl.appendChild(dot);
+      }
+    }
+
+    const label = document.createElement("span");
+    label.className = "piece-ref-label";
+    label.textContent = `${piece.id} (${piece.cells.length})`;
+
+    card.appendChild(shapeEl);
+    card.appendChild(label);
+    piecesReferenceEl.appendChild(card);
+  }
+}
+
 function updateTurnLabel() {
   if (!turnIndicatorEl) {
     return;
@@ -661,6 +699,9 @@ function syncUI() {
   renderBoard();
   updateScore();
   renderReasoning();
+  if (reasoningGridMobileEl) {
+    reasoningGridMobileEl.classList.toggle("ai-mode", game.mode === "ai");
+  }
 }
 
 function hasAnyLegalMove(player) {
@@ -1434,6 +1475,7 @@ function init() {
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
   game.playerNames[2] = (player2NameEl.value || "").trim() || "Human";
   game.playerNames.ai = "AI";
+  renderPiecesReference();
   setMobileView("board");
   resetGame();
   startTurn(1);
