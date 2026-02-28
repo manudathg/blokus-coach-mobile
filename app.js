@@ -1,4 +1,8 @@
 const BOARD_SIZE = 14;
+const REVIEW_STATE_KEY = "bpc_review_state_v1";
+const METRICS_STATE_KEY = "bpc_metrics_state_v1";
+const APP_STORE_REVIEW_URL = "itms-apps://itunes.apple.com/app/id6759510502?action=write-review";
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 const pieces = [
   { id: "I1", name: "I1", cells: [[0, 0]] },
@@ -55,6 +59,10 @@ const reasoningHumanMobileEl = document.getElementById("reasoning-human-mobile")
 const reasoningAiMobileEl = document.getElementById("reasoning-ai-mobile");
 const reasoningGridMobileEl = document.querySelector(".reasoning-grid-mobile");
 const piecesReferenceEl = document.getElementById("pieces-reference");
+const metricDeadClickRateEl = document.getElementById("metric-dead-click-rate");
+const metricInvalidPerGameEl = document.getElementById("metric-invalid-per-game");
+const metricCrashFreeEl = document.getElementById("metric-crash-free");
+const metricInstallFirstEl = document.getElementById("metric-install-first");
 const feedbackEl = document.getElementById("feedback");
 const turnIndicatorEl = document.getElementById("turn-indicator");
 const modeSelectEl = document.getElementById("mode-select");
@@ -111,13 +119,274 @@ const game = {
   playerNames: { 1: "Player 1", 2: "Player 2", ai: "AI" },
   theme: "default",
   mobileView: "board",
-  pendingAnchorByPlayer: { 1: null, 2: null }
+  pendingAnchorByPlayer: { 1: null, 2: null },
+  hadErrorThisGame: false
 };
 
 const transformsByPiece = new Map();
 
 function key(x, y) {
   return `${x},${y}`;
+}
+
+function loadMetricsState() {
+  try {
+    const raw = localStorage.getItem(METRICS_STATE_KEY);
+    if (!raw) {
+      return {
+        installAt: Date.now(),
+        sessionCounter: 0,
+        currentSessionId: 0,
+        totalDeadClicks: 0,
+        totalInvalidAttempts: 0,
+        totalCompletedGames: 0,
+        invalidAttemptsCurrentGame: 0,
+        firstGameCompletedAt: 0,
+        events: []
+      };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      installAt: Number(parsed.installAt || Date.now()),
+      sessionCounter: Number(parsed.sessionCounter || 0),
+      currentSessionId: Number(parsed.currentSessionId || 0),
+      totalDeadClicks: Number(parsed.totalDeadClicks || 0),
+      totalInvalidAttempts: Number(parsed.totalInvalidAttempts || 0),
+      totalCompletedGames: Number(parsed.totalCompletedGames || 0),
+      invalidAttemptsCurrentGame: Number(parsed.invalidAttemptsCurrentGame || 0),
+      firstGameCompletedAt: Number(parsed.firstGameCompletedAt || 0),
+      events: Array.isArray(parsed.events) ? parsed.events : []
+    };
+  } catch {
+    return {
+      installAt: Date.now(),
+      sessionCounter: 0,
+      currentSessionId: 0,
+      totalDeadClicks: 0,
+      totalInvalidAttempts: 0,
+      totalCompletedGames: 0,
+      invalidAttemptsCurrentGame: 0,
+      firstGameCompletedAt: 0,
+      events: []
+    };
+  }
+}
+
+function saveMetricsState(state) {
+  try {
+    localStorage.setItem(METRICS_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function logEvent(type, data = {}) {
+  const metrics = loadMetricsState();
+  metrics.events.push({
+    ts: Date.now(),
+    sessionId: metrics.currentSessionId,
+    type,
+    ...data
+  });
+  if (metrics.events.length > 500) {
+    metrics.events = metrics.events.slice(-500);
+  }
+  saveMetricsState(metrics);
+}
+
+function incrementDeadClicks(reason) {
+  const metrics = loadMetricsState();
+  metrics.totalDeadClicks += 1;
+  saveMetricsState(metrics);
+  logEvent("dead_click", { reason });
+}
+
+function incrementInvalidAttempts(reason) {
+  const metrics = loadMetricsState();
+  metrics.totalInvalidAttempts += 1;
+  metrics.invalidAttemptsCurrentGame += 1;
+  saveMetricsState(metrics);
+  logEvent("invalid_attempt", { reason });
+}
+
+function completeGameMetrics(winnerPlayer) {
+  const metrics = loadMetricsState();
+  metrics.totalCompletedGames += 1;
+  if (!metrics.firstGameCompletedAt) {
+    metrics.firstGameCompletedAt = Date.now();
+  }
+  const invalidThisGame = metrics.invalidAttemptsCurrentGame;
+  metrics.invalidAttemptsCurrentGame = 0;
+  saveMetricsState(metrics);
+  logEvent("game_complete", { winnerPlayer, invalidAttempts: invalidThisGame });
+}
+
+function resetCurrentGameMetrics() {
+  const metrics = loadMetricsState();
+  metrics.invalidAttemptsCurrentGame = 0;
+  saveMetricsState(metrics);
+}
+
+function renderMetricsDashboard() {
+  if (!metricDeadClickRateEl || !metricInvalidPerGameEl || !metricCrashFreeEl || !metricInstallFirstEl) {
+    return;
+  }
+
+  const review = loadReviewState();
+  const metrics = loadMetricsState();
+
+  const sessions = Math.max(0, review.sessions);
+  const deadClickRate = sessions > 0 ? metrics.totalDeadClicks / sessions : 0;
+  const invalidPerGame = metrics.totalCompletedGames > 0
+    ? metrics.totalInvalidAttempts / metrics.totalCompletedGames
+    : 0;
+  const crashTotal = review.sessionOutcomes.length;
+  const crashFree = crashTotal > 0
+    ? (review.sessionOutcomes.filter((entry) => entry === "clean").length / crashTotal) * 100
+    : 100;
+  const installToFirstCompletion = metrics.firstGameCompletedAt ? 100 : 0;
+
+  metricDeadClickRateEl.textContent = deadClickRate.toFixed(2);
+  metricInvalidPerGameEl.textContent = invalidPerGame.toFixed(2);
+  metricCrashFreeEl.textContent = `${crashFree.toFixed(0)}%`;
+  metricInstallFirstEl.textContent = `${installToFirstCompletion}%`;
+}
+
+function loadReviewState() {
+  try {
+    const raw = localStorage.getItem(REVIEW_STATE_KEY);
+    if (!raw) {
+      return {
+        sessions: 0,
+        completedGames: 0,
+        lastPromptAt: 0,
+        sessionActive: false,
+        sessionOutcomes: []
+      };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      sessions: Number(parsed.sessions || 0),
+      completedGames: Number(parsed.completedGames || 0),
+      lastPromptAt: Number(parsed.lastPromptAt || 0),
+      sessionActive: Boolean(parsed.sessionActive),
+      sessionOutcomes: Array.isArray(parsed.sessionOutcomes) ? parsed.sessionOutcomes : []
+    };
+  } catch {
+    return {
+      sessions: 0,
+      completedGames: 0,
+      lastPromptAt: 0,
+      sessionActive: false,
+      sessionOutcomes: []
+    };
+  }
+}
+
+function saveReviewState(state) {
+  try {
+    localStorage.setItem(REVIEW_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage errors to keep gameplay unaffected.
+  }
+}
+
+function markSessionClosed(clean) {
+  const state = loadReviewState();
+  if (!state.sessionActive) {
+    return;
+  }
+  state.sessionActive = false;
+  state.sessionOutcomes.push(clean ? "clean" : "crash");
+  if (state.sessionOutcomes.length > 12) {
+    state.sessionOutcomes = state.sessionOutcomes.slice(-12);
+  }
+  saveReviewState(state);
+  logEvent("session_end", { clean });
+}
+
+function startSessionTracking() {
+  const state = loadReviewState();
+  if (state.sessionActive) {
+    state.sessionOutcomes.push("crash");
+  }
+  if (state.sessionOutcomes.length > 12) {
+    state.sessionOutcomes = state.sessionOutcomes.slice(-12);
+  }
+  state.sessions += 1;
+  state.sessionActive = true;
+  saveReviewState(state);
+
+  const metrics = loadMetricsState();
+  metrics.sessionCounter += 1;
+  metrics.currentSessionId = metrics.sessionCounter;
+  if (!metrics.installAt) {
+    metrics.installAt = Date.now();
+  }
+  saveMetricsState(metrics);
+  logEvent("session_start", { session: metrics.currentSessionId });
+  renderMetricsDashboard();
+
+  window.addEventListener("beforeunload", () => markSessionClosed(true));
+  window.addEventListener("pagehide", () => markSessionClosed(true));
+}
+
+function incrementCompletedGames() {
+  const state = loadReviewState();
+  state.completedGames += 1;
+  saveReviewState(state);
+  renderMetricsDashboard();
+}
+
+function hasNoCrashesInLastThreeSessions(state) {
+  const lastThree = state.sessionOutcomes.slice(-3);
+  return lastThree.length === 3 && lastThree.every((entry) => entry === "clean");
+}
+
+async function tryNativeReviewPrompt() {
+  const plugins = window.Capacitor?.Plugins ?? {};
+  const candidates = ["AppReview", "InAppReview", "StoreReview", "RateApp"];
+
+  for (const name of candidates) {
+    const plugin = plugins[name];
+    if (plugin && typeof plugin.requestReview === "function") {
+      await plugin.requestReview();
+      return true;
+    }
+  }
+  return false;
+}
+
+async function maybeAskForRating(winnerPlayer) {
+  if (game.hadErrorThisGame || !winnerPlayer) {
+    return;
+  }
+  if (game.mode === "ai" && winnerPlayer !== 2) {
+    return;
+  }
+
+  const state = loadReviewState();
+  if (state.sessions < 3 || state.completedGames < 2) {
+    return;
+  }
+  if (!hasNoCrashesInLastThreeSessions(state)) {
+    return;
+  }
+  if (state.lastPromptAt && Date.now() - state.lastPromptAt < THIRTY_DAYS_MS) {
+    return;
+  }
+
+  const shouldPrompt = window.confirm("Enjoying Block Puzzle Coach? Please rate us on the App Store.");
+  state.lastPromptAt = Date.now();
+  saveReviewState(state);
+  if (!shouldPrompt) {
+    return;
+  }
+
+  const nativePromptShown = await tryNativeReviewPrompt();
+  if (!nativePromptShown) {
+    window.location.href = APP_STORE_REVIEW_URL;
+  }
 }
 
 function playerLabel(player) {
@@ -400,6 +669,22 @@ function setFeedback(text, type = "good") {
   feedbackEl.textContent = text;
   feedbackEl.classList.toggle("good", type === "good");
   feedbackEl.classList.toggle("bad", type === "bad");
+  if (type === "bad") {
+    const invalidMovePatterns = [
+      /out of bounds/i,
+      /cannot overlap/i,
+      /must cover/i,
+      /must touch/i,
+      /cannot touch edge-to-edge/i,
+      /select a piece/i,
+      /pass is not allowed/i,
+      /no legal move for this piece/i
+    ];
+    if (invalidMovePatterns.some((pattern) => pattern.test(text))) {
+      game.hadErrorThisGame = true;
+      incrementInvalidAttempts(text);
+    }
+  }
 }
 
 function updateScore() {
@@ -702,6 +987,7 @@ function syncUI() {
   if (reasoningGridMobileEl) {
     reasoningGridMobileEl.classList.toggle("ai-mode", game.mode === "ai");
   }
+  renderMetricsDashboard();
 }
 
 function hasAnyLegalMove(player) {
@@ -970,14 +1256,19 @@ function finishGame() {
   game.isGameOver = true;
   const { p1Tiles, p2Tiles } = updateScore();
 
+  let winnerPlayer = null;
   if (p1Tiles === p2Tiles) {
     setFeedback(`Game over: tie at ${p1Tiles}-${p2Tiles}.`, "good");
   } else {
-    const winner = p1Tiles > p2Tiles ? playerLabel(1) : playerLabel(2);
+    winnerPlayer = p1Tiles > p2Tiles ? 1 : 2;
+    const winner = playerLabel(winnerPlayer);
     setFeedback(`Game over: ${winner} wins ${Math.max(p1Tiles, p2Tiles)}-${Math.min(p1Tiles, p2Tiles)}.`, "good");
   }
   setReasoning(1, "Game finished. Great thinking and teamwork! 🏁");
   setReasoning(2, "Game finished. Thanks for playing! 🏁");
+  incrementCompletedGames();
+  completeGameMetrics(winnerPlayer);
+  void maybeAskForRating(winnerPlayer);
 
   syncUI();
 }
@@ -1027,10 +1318,12 @@ function endTurn() {
 
 function tryPlaceAt(x, y) {
   if (game.isGameOver || game.aiThinking) {
+    incrementDeadClicks("game_busy_or_over");
     return;
   }
 
   if (game.mode === "ai" && game.currentPlayer === 1) {
+    incrementDeadClicks("ai_turn");
     return;
   }
 
@@ -1038,6 +1331,7 @@ function tryPlaceAt(x, y) {
   const pieceId = game.selectedPieceByPlayer[player];
   const shape = getCurrentShape(player);
   if (!pieceId || shape.length === 0) {
+    incrementDeadClicks("no_piece_selected");
     setFeedback("Select a piece.", "bad");
     return;
   }
@@ -1055,6 +1349,7 @@ function tryPlaceAt(x, y) {
 
   setPendingPlacement(player, anchorX, anchorY, shape);
   if (!verdict.ok) {
+    incrementDeadClicks("invalid_preview");
     setFeedback(verdict.reason, "bad");
   } else {
     setFeedback(`Preview at x:${anchorX + 1}, y:${anchorY + 1}. Tap again here or press Play Piece.`, "good");
@@ -1263,6 +1558,9 @@ function resetGame() {
   game.isGameOver = false;
   game.consecutivePasses = 0;
   game.aiThinking = false;
+  game.hadErrorThisGame = false;
+  resetCurrentGameMetrics();
+  logEvent("game_start", { mode: game.mode, difficulty: game.difficulty });
   game.reasoning = {
     1: game.mode === "ai" ? "AI reasoning will appear here during its turn." : "Player 1 strategy notes will appear here.",
     2: game.mode === "ai" ? "Coach is finding your best opening..." : "Player 2 strategy notes will appear here."
@@ -1465,6 +1763,7 @@ function bindEvents() {
 
 function init() {
   precomputeTransforms();
+  startSessionTracking();
   renderCoordinates();
   bindEvents();
   if (difficultySelectEl) {
@@ -1475,7 +1774,19 @@ function init() {
   game.playerNames[1] = (player1NameEl.value || "").trim() || "Player 1";
   game.playerNames[2] = (player2NameEl.value || "").trim() || "Human";
   game.playerNames.ai = "AI";
+  window.BPCMetrics = {
+    export: () => JSON.stringify(loadMetricsState(), null, 2),
+    summary: () => ({
+      review: loadReviewState(),
+      metrics: loadMetricsState()
+    }),
+    clear: () => {
+      localStorage.removeItem(METRICS_STATE_KEY);
+      renderMetricsDashboard();
+    }
+  };
   renderPiecesReference();
+  renderMetricsDashboard();
   setMobileView("board");
   resetGame();
   startTurn(1);

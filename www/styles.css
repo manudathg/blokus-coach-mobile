@@ -601,6 +601,30 @@ button.ghost {
   font-weight: 700;
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.metric-card {
+  background: #f5cf7d;
+  border: 1px solid var(--box-border);
+  border-radius: 10px;
+  padding: 0.45rem;
+}
+
+.metric-card h4 {
+  font-size: 0.8rem;
+  margin-bottom: 0.2rem;
+}
+
+.metric-card p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .legacy-panel {
   display: none;
 }
@@ -847,5 +871,9 @@ button.ghost {
 
   .reasoning-card .reasoning-text {
     font-size: 0.88rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
   }
 }
