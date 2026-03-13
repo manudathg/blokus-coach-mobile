@@ -390,8 +390,8 @@ async function maybeAskForRating(winnerPlayer) {
 }
 
 function playerLabel(player) {
-  if (game.mode === "ai" && player === 1) {
-    return game.playerNames.ai || "AI";
+  if (game.mode === "ai") {
+    return player === 1 ? "AI" : "Human";
   }
   return game.playerNames[player] || playerConfig[player].name;
 }
@@ -407,10 +407,13 @@ function updateTurnHighlight() {
 
 function updatePlayerTitles() {
   if (game.mode === "ai") {
-    player1NameEl.value = game.playerNames.ai || "AI";
+    game.playerNames.ai = "AI";
+    game.playerNames[1] = "AI";
+    game.playerNames[2] = "Human";
+    player1NameEl.value = "AI";
     player1NameEl.disabled = true;
-    player2NameEl.value = game.playerNames[2] || "Human";
-    player2NameEl.disabled = false;
+    player2NameEl.value = "Human";
+    player2NameEl.disabled = true;
   } else {
     player1NameEl.value = game.playerNames[1] || "Player 1";
     player1NameEl.disabled = false;
@@ -924,6 +927,52 @@ function refreshPendingPlacement(player) {
     return;
   }
   setPendingPlacement(player, pending.x, pending.y, shape, pending.kind || "manual");
+}
+
+function findAutoPreviewAnchor(player, shape) {
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      const verdict = evaluatePlacement(player, x, y, shape);
+      if (verdict.ok) {
+        return { x, y, legal: true };
+      }
+    }
+  }
+
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (game.board[y][x] === 0) {
+        return { x, y, legal: false, reason: "No legal spot for this piece yet. Preview moved to an open slot." };
+      }
+    }
+  }
+
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (game.board[y][x] !== 0) {
+        return { x, y, legal: false, reason: "No open slots remain. Preview moved to an occupied slot." };
+      }
+    }
+  }
+
+  return { x: 0, y: 0, legal: false, reason: "Board is unavailable for placement preview." };
+}
+
+function autoPreviewSelectedPiece(player) {
+  const pieceId = game.selectedPieceByPlayer[player];
+  const shape = getCurrentShape(player);
+  if (!pieceId || shape.length === 0) {
+    clearPendingPlacement(player);
+    return;
+  }
+
+  const target = findAutoPreviewAnchor(player, shape);
+  setPendingPlacement(player, target.x, target.y, shape);
+  if (target.legal) {
+    setFeedback(`Preview at x:${target.x + 1}, y:${target.y + 1}. Tap again here or press Play Piece.`, "good");
+  } else {
+    setFeedback(target.reason, "bad");
+  }
 }
 
 function renderReasoning() {
@@ -1582,7 +1631,7 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = event.target.value;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
-      clearPendingPlacement(player);
+      autoPreviewSelectedPiece(player);
       syncUI();
       if (player === 2) {
         refreshHumanChoiceReasoning();
@@ -1626,26 +1675,13 @@ function bindEvents() {
 
   const applyModeSelection = () => {
     const nextMode = modeSelectEl.value;
-    if (game.mode === nextMode && game.board.length > 0) {
+    if (game.mode === nextMode) {
       return;
     }
-    game.mode = nextMode;
-    if (difficultySelectEl) {
-      difficultySelectEl.disabled = game.mode !== "ai";
-    }
-    syncUI();
-
-    game.modeChangeToken += 1;
-    const token = game.modeChangeToken;
-    setTimeout(() => {
-      if (token !== game.modeChangeToken) {
-        return;
-      }
-      resetGame();
-      startTurn(1);
-    }, 0);
+    modeSelectEl.value = nextMode;
+    resetGame();
+    startTurn(1);
   };
-  modeSelectEl.addEventListener("input", applyModeSelection);
   modeSelectEl.addEventListener("change", applyModeSelection);
 
   if (difficultySelectEl) {
@@ -1713,7 +1749,7 @@ function bindEvents() {
       game.selectedPieceByPlayer[player] = pieceId;
       game.rotationByPlayer[player] = 0;
       game.flippedByPlayer[player] = false;
-      clearPendingPlacement(player);
+      autoPreviewSelectedPiece(player);
       if (player === 2) {
         refreshHumanChoiceReasoning();
       }

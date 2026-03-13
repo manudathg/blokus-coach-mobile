@@ -14,6 +14,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
@@ -22,7 +28,7 @@ body {
   min-height: 100vh;
   padding-top: 50px;
   padding-bottom: 10px;
-  touch-action: manipulation;
+  touch-action: pan-y manipulation;
   -webkit-text-size-adjust: 100%;
   position: relative;
 }
@@ -48,9 +54,11 @@ body::before {
 
 .app-shell {
   width: min(1380px, 96vw);
+  max-width: 100%;
   margin: 0 auto 2rem;
   display: grid;
   gap: 1rem;
+  overflow-x: clip;
 }
 
 .hero {
@@ -127,6 +135,8 @@ h4 {
   grid-template-columns: 1fr;
   gap: 1rem;
   align-items: start;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .player-panel,
@@ -169,6 +179,7 @@ h4 {
   gap: 0.55rem;
   justify-items: center;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 20px rgba(10, 19, 29, 0.25);
+  overflow-x: hidden;
 }
 
 .center-panel label {
@@ -323,6 +334,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-x: hidden;
 }
 
 .board-row {
@@ -607,6 +619,10 @@ button.ghost {
   gap: 0.45rem;
 }
 
+.local-metrics-panel {
+  display: none;
+}
+
 .metric-card {
   background: #f5cf7d;
   border: 1px solid var(--box-border);
@@ -719,7 +735,8 @@ button.ghost {
   }
 
   .app-shell {
-    width: 100vw;
+    width: 100%;
+    max-width: 100%;
     margin: 0;
     padding: 0.55rem 0 0.35rem;
   }
@@ -753,8 +770,9 @@ button.ghost {
   }
 
   .workspace-3col {
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
     gap: 0;
   }
 
